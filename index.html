@@ -371,6 +371,7 @@
                     genres: data.genres || [],
                     styles: data.styles || [],
                     tracklist: data.tracklist ? data.tracklist.map(t => t.title || 'Untitled').filter(Boolean) : []
+                    tracklist: data.tracklist ? data.tracklist.map(t => t.title) : []
                 };
                 releaseCache.set(releaseId, releaseData);
                 return releaseData;
@@ -737,6 +738,9 @@
                         errorDetail.textContent = error.message; // Use textContent to prevent XSS
                     }
                 }
+                document.getElementById('loading').innerHTML = `
+                    <div class="loading-text">Error loading collection</div>
+                    <div style="color: rgba(255,255,255,0.4); font-size: 0.9rem;">${error.message}</div>`;
             }
         }
 
