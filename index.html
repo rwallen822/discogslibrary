@@ -370,6 +370,7 @@
                     imageUrl: data.images && data.images[0] ? data.images[0].uri : null,
                     genres: data.genres || [],
                     styles: data.styles || [],
+                    tracklist: data.tracklist ? data.tracklist.map(t => t.title || 'Untitled').filter(Boolean) : []
                     tracklist: data.tracklist ? data.tracklist.map(t => t.title) : []
                 };
                 releaseCache.set(releaseId, releaseData);
@@ -392,6 +393,10 @@
         }
 
         function typeWriter(element, text, speed, callback) {
+            if (!element) {
+                if (callback) callback();
+                return;
+            }
             let i = 0;
             element.textContent = '';
             element.classList.add('typewriter-cursor');
@@ -410,6 +415,10 @@
         }
 
         function showTracklist(element, tracks, callback) {
+            if (!element) {
+                if (callback) callback();
+                return;
+            }
             const inner = element.querySelector('.tracklist-inner') || element;
             inner.innerHTML = '';
             let trackIndex = 0;
@@ -662,6 +671,10 @@
 
         async function showNextSlide() {
             const container = document.getElementById('container');
+            if (!container) {
+                console.error('Container element not found');
+                return;
+            }
             let newSlide;
             if (nextSlideReady) {
                 newSlide = nextSlideReady;
@@ -692,6 +705,11 @@
             const loadingBar = document.getElementById('loadingBar');
             const loading = document.getElementById('loading');
 
+            if (!loadingBar || !loading) {
+                console.error('Required loading elements not found');
+                return;
+            }
+
             try {
                 loadingBar.style.width = '30%';
                 shuffledData = shuffle(collectionData);
@@ -712,6 +730,14 @@
                 }, 500);
             } catch (error) {
                 console.error('Error initializing:', error);
+                const loadingEl = document.getElementById('loading');
+                if (loadingEl) {
+                    loadingEl.innerHTML = '<div class="loading-text">Error loading collection</div><div id="error-detail" style="color: rgba(255,255,255,0.4); font-size: 0.9rem;"></div>';
+                    const errorDetail = document.getElementById('error-detail');
+                    if (errorDetail) {
+                        errorDetail.textContent = error.message; // Use textContent to prevent XSS
+                    }
+                }
                 document.getElementById('loading').innerHTML = `
                     <div class="loading-text">Error loading collection</div>
                     <div style="color: rgba(255,255,255,0.4); font-size: 0.9rem;">${error.message}</div>`;
