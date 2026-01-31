@@ -743,7 +743,9 @@
                     allReleases.push({
                         release_id: String(info.id),
                         Artist: info.artists.map(a => a.name).join(', '),
-                        Title: info.title
+                        Title: info.title,
+                        // Capture format info for box set pre-filtering
+                        formats: info.formats || []
                     });
                 }
 
@@ -779,7 +781,7 @@
 
             if (releaseCache.has(releaseId)) return releaseCache.get(releaseId);
             try {
-                const response = await fetch(`https://api.discogs.com/releases/${releaseId}`, {
+                const response = await fetchWithTimeout(`https://api.discogs.com/releases/${releaseId}`, {
                     headers: {
                         'Authorization': `Discogs token=${DISCOGS_TOKEN}`,
                         'User-Agent': 'VinylDisplayApp/1.0'
@@ -810,6 +812,53 @@
         let boxSetCache = {};
         let apiRequestQueue = [];
         let isProcessingQueue = false;
+        const BOX_SET_PROCESS_TIMEOUT = 30000; // 30 seconds max for entire box set processing
+        const SINGLE_REQUEST_TIMEOUT = 10000; // 10 seconds per request
+
+        // Check if a record might be a box set based on collection format info
+        function isPotentialBoxSet(record) {
+            const formats = record.formats || [];
+            for (const format of formats) {
+                const name = (format.name || '').toLowerCase();
+                const text = (format.text || '').toLowerCase();
+                const qty = parseInt(format.qty) || 1;
+                const descriptions = (format.descriptions || []).map(d => d.toLowerCase());
+
+                // Check for explicit "Box Set" in format
+                if (name.includes('box set') || text.includes('box set')) {
+                    return true;
+                }
+                if (descriptions.some(d => d.includes('box set'))) {
+                    return true;
+                }
+                // Check for multi-disc (qty >= 3 is more likely a box set)
+                if (qty >= 3) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Fetch with timeout
+        async function fetchWithTimeout(url, options = {}, timeout = SINGLE_REQUEST_TIMEOUT) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                return response;
+            } catch (error) {
+                clearTimeout(timeoutId);
+                if (error.name === 'AbortError') {
+                    throw new Error('Request timeout');
+                }
+                throw error;
+            }
+        }
 
         function loadBoxSetCache() {
             try {
@@ -996,9 +1045,10 @@
             return queueApiRequest(async () => {
                 try {
                     const query = encodeURIComponent(`${artist} ${albumTitle}`);
-                    const response = await fetch(
+                    const response = await fetchWithTimeout(
                         `https://api.discogs.com/database/search?q=${query}&type=release&token=${DISCOGS_TOKEN}`,
-                        { headers: { 'User-Agent': 'VinylDisplayApp/1.0' } }
+                        { headers: { 'User-Agent': 'VinylDisplayApp/1.0' } },
+                        SINGLE_REQUEST_TIMEOUT
                     );
 
                     if (!response.ok) return null;
@@ -1014,7 +1064,7 @@
                     }
                     return null;
                 } catch (error) {
-                    console.error('Search error:', error);
+                    console.log(`[BoxSet] Cover search failed for "${albumTitle}":`, error.message);
                     return null;
                 }
             });
@@ -1033,13 +1083,24 @@
             const virtualAlbums = [];
             const boxSetCover = releaseData.imageUrl;
 
-            for (const subAlbum of subAlbums) {
-                // Search for cover art
-                let coverUrl = await searchAlbumCover(record.Artist, subAlbum.title);
+            // Limit cover searches to first 5 sub-albums to avoid too many API calls
+            const MAX_COVER_SEARCHES = 5;
 
-                // Fall back to box set cover if search fails
-                if (!coverUrl) {
-                    coverUrl = boxSetCover;
+            for (let i = 0; i < subAlbums.length; i++) {
+                const subAlbum = subAlbums[i];
+                let coverUrl = boxSetCover; // Default to box set cover
+
+                // Only search for cover if we haven't hit the limit and title isn't generic
+                const isGenericTitle = /^(Disc|CD|LP|Side)\s*\d+$/i.test(subAlbum.title);
+                if (i < MAX_COVER_SEARCHES && !isGenericTitle) {
+                    try {
+                        const searchResult = await searchAlbumCover(record.Artist, subAlbum.title);
+                        if (searchResult) {
+                            coverUrl = searchResult;
+                        }
+                    } catch (error) {
+                        console.log(`[BoxSet] Cover search failed for "${subAlbum.title}", using box set cover`);
+                    }
                 }
 
                 virtualAlbums.push({
@@ -1060,71 +1121,119 @@
         }
 
         async function processBoxSets(collectionData) {
-            if (!settings.expandBoxSets) return collectionData;
+            if (!settings.expandBoxSets) {
+                console.log('[BoxSet] Box set expansion disabled');
+                return collectionData;
+            }
 
+            console.log(`[BoxSet] Starting processing for ${collectionData.length} items`);
             loadBoxSetCache();
+
             const expandedCollection = [];
             const detectedBoxSets = [];
+            const startTime = Date.now();
+            let processedCount = 0;
+            let skippedCount = 0;
+            let errorCount = 0;
 
-            for (const record of collectionData) {
-                // Check cache first
-                if (boxSetCache[record.release_id]) {
-                    const cached = boxSetCache[record.release_id];
-                    if (cached.expanded && cached.virtualAlbums) {
-                        expandedCollection.push(...cached.virtualAlbums);
-                        detectedBoxSets.push({
-                            record,
-                            virtualAlbums: cached.virtualAlbums,
-                            fromCache: true
-                        });
-                        continue;
-                    } else if (!cached.isBoxSet) {
-                        expandedCollection.push(record);
-                        continue;
-                    }
+            // Pre-filter: only check items that might be box sets
+            const potentialBoxSets = collectionData.filter(r => isPotentialBoxSet(r));
+            const regularAlbums = collectionData.filter(r => !isPotentialBoxSet(r));
+
+            console.log(`[BoxSet] Found ${potentialBoxSets.length} potential box sets, ${regularAlbums.length} regular albums`);
+
+            // Add all regular albums directly
+            expandedCollection.push(...regularAlbums);
+
+            // Process potential box sets
+            for (const record of potentialBoxSets) {
+                // Check overall timeout
+                if (Date.now() - startTime > BOX_SET_PROCESS_TIMEOUT) {
+                    console.warn(`[BoxSet] Timeout reached after ${processedCount} items. Adding remaining as-is.`);
+                    // Add remaining unprocessed items as-is
+                    const remaining = potentialBoxSets.slice(potentialBoxSets.indexOf(record));
+                    expandedCollection.push(...remaining);
+                    skippedCount += remaining.length;
+                    break;
                 }
 
-                // Fetch release data to check if box set
-                const releaseData = await fetchReleaseData(record.release_id);
-                const detection = detectBoxSet(releaseData);
+                processedCount++;
+                const progress = Math.round((processedCount / potentialBoxSets.length) * 100);
+                console.log(`[BoxSet] Processing ${processedCount}/${potentialBoxSets.length} (${progress}%): ${record.Title}`);
 
-                if (detection.isBoxSet) {
-                    const virtualAlbums = await expandBoxSet(record, releaseData);
+                try {
+                    // Check cache first
+                    if (boxSetCache[record.release_id]) {
+                        const cached = boxSetCache[record.release_id];
+                        if (cached.expanded && cached.virtualAlbums) {
+                            expandedCollection.push(...cached.virtualAlbums);
+                            detectedBoxSets.push({
+                                record,
+                                virtualAlbums: cached.virtualAlbums,
+                                fromCache: true
+                            });
+                            console.log(`[BoxSet] Using cached expansion for ${record.Title}: ${cached.virtualAlbums.length} albums`);
+                            continue;
+                        } else if (cached.isBoxSet === false) {
+                            expandedCollection.push(record);
+                            continue;
+                        }
+                    }
 
-                    if (virtualAlbums && virtualAlbums.length > 1) {
-                        expandedCollection.push(...virtualAlbums);
-                        boxSetCache[record.release_id] = {
-                            isBoxSet: true,
-                            expanded: true,
-                            virtualAlbums,
-                            lastUpdated: Date.now()
-                        };
-                        detectedBoxSets.push({
-                            record,
-                            virtualAlbums,
-                            fromCache: false
-                        });
+                    // Fetch release data to check if box set
+                    const releaseData = await fetchReleaseData(record.release_id);
+                    const detection = detectBoxSet(releaseData);
+
+                    if (detection.isBoxSet) {
+                        console.log(`[BoxSet] Detected box set: ${record.Title} (reason: ${detection.reason})`);
+                        const virtualAlbums = await expandBoxSet(record, releaseData);
+
+                        if (virtualAlbums && virtualAlbums.length > 1) {
+                            expandedCollection.push(...virtualAlbums);
+                            boxSetCache[record.release_id] = {
+                                isBoxSet: true,
+                                expanded: true,
+                                virtualAlbums,
+                                lastUpdated: Date.now()
+                            };
+                            detectedBoxSets.push({
+                                record,
+                                virtualAlbums,
+                                fromCache: false
+                            });
+                            console.log(`[BoxSet] Expanded ${record.Title} to ${virtualAlbums.length} albums`);
+                        } else {
+                            // Couldn't expand, keep original
+                            expandedCollection.push(record);
+                            boxSetCache[record.release_id] = {
+                                isBoxSet: true,
+                                expanded: false,
+                                lastUpdated: Date.now()
+                            };
+                            console.log(`[BoxSet] Could not expand ${record.Title}, keeping original`);
+                        }
                     } else {
-                        // Couldn't expand, keep original
                         expandedCollection.push(record);
                         boxSetCache[record.release_id] = {
-                            isBoxSet: true,
-                            expanded: false,
+                            isBoxSet: false,
                             lastUpdated: Date.now()
                         };
                     }
-                } else {
+                } catch (error) {
+                    errorCount++;
+                    console.error(`[BoxSet] Error processing ${record.Title}:`, error.message);
+                    // On error, just add the original record
                     expandedCollection.push(record);
-                    boxSetCache[record.release_id] = {
-                        isBoxSet: false,
-                        lastUpdated: Date.now()
-                    };
                 }
             }
 
             saveBoxSetCache();
             // Store detected box sets for manager UI
             window.detectedBoxSets = detectedBoxSets;
+
+            const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+            console.log(`[BoxSet] Completed in ${elapsed}s. Processed: ${processedCount}, Skipped: ${skippedCount}, Errors: ${errorCount}`);
+            console.log(`[BoxSet] Final collection: ${expandedCollection.length} items (${detectedBoxSets.length} box sets expanded)`);
 
             return expandedCollection;
         }
@@ -1570,7 +1679,14 @@
                 if (settings.expandBoxSets) {
                     const loadingText = document.querySelector('.loading-text');
                     if (loadingText) loadingText.textContent = 'Processing box sets...';
-                    collectionData = await processBoxSets(collectionData);
+                    try {
+                        collectionData = await processBoxSets(collectionData);
+                    } catch (boxSetError) {
+                        console.error('[BoxSet] Processing failed:', boxSetError);
+                        // Continue with unexpanded collection
+                        if (loadingText) loadingText.textContent = 'Box set processing failed, continuing...';
+                        await new Promise(r => setTimeout(r, 1500)); // Brief pause to show message
+                    }
                 }
 
                 // Start the slideshow
