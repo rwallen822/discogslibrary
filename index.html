@@ -312,6 +312,102 @@
             color: #ff6b6b; font-size: 0.9rem; margin-top: 1rem;
             font-family: 'Questrial', sans-serif;
         }
+
+        /* Settings Button */
+        .settings-btn {
+            position: fixed; top: 20px; right: 20px; z-index: 100;
+            width: 50px; height: 50px; border-radius: 50%;
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            color: #fff; cursor: pointer; font-size: 1.5rem;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.3s ease, background 0.2s ease;
+        }
+        .settings-btn.visible { opacity: 1; pointer-events: auto; }
+        .settings-btn:hover { background: rgba(255,255,255,0.2); }
+
+        /* Settings Panel */
+        .settings-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 3000;
+            display: none; align-items: center; justify-content: center;
+        }
+        .settings-overlay.open { display: flex; }
+        .settings-panel {
+            background: #1a1a1a; border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px; padding: 2rem; width: 90%; max-width: 500px;
+            max-height: 80vh; overflow-y: auto;
+            font-family: 'Questrial', sans-serif; color: #fff;
+        }
+        .settings-panel h2 {
+            margin: 0 0 1.5rem 0; font-size: 1.5rem; font-weight: 400;
+            letter-spacing: 0.1em; text-align: center;
+        }
+        .settings-section {
+            margin-bottom: 1.5rem; padding-bottom: 1.5rem;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .settings-section:last-child { border-bottom: none; margin-bottom: 0; }
+        .settings-section h3 {
+            font-size: 0.85rem; font-weight: 400; color: rgba(255,255,255,0.5);
+            letter-spacing: 0.15em; text-transform: uppercase; margin: 0 0 1rem 0;
+        }
+        .setting-row {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 0.8rem; min-height: 40px;
+        }
+        .setting-row:last-child { margin-bottom: 0; }
+        .setting-label { font-size: 1rem; color: rgba(255,255,255,0.8); }
+
+        /* Toggle Switch */
+        .toggle { position: relative; width: 50px; height: 28px; }
+        .toggle input { display: none; }
+        .toggle-slider {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.2); border-radius: 28px;
+            cursor: pointer; transition: background 0.3s;
+        }
+        .toggle-slider::before {
+            content: ''; position: absolute; width: 22px; height: 22px;
+            left: 3px; bottom: 3px; background: #fff; border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        .toggle input:checked + .toggle-slider { background: #4CAF50; }
+        .toggle input:checked + .toggle-slider::before { transform: translateX(22px); }
+
+        /* Range Slider */
+        .range-container { display: flex; align-items: center; gap: 10px; }
+        .range-value { font-size: 0.9rem; min-width: 35px; text-align: right; }
+        input[type="range"] {
+            width: 120px; height: 6px; -webkit-appearance: none;
+            background: rgba(255,255,255,0.2); border-radius: 3px; cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 18px; height: 18px;
+            background: #fff; border-radius: 50%; cursor: pointer;
+        }
+
+        /* Effect Checkboxes */
+        .effects-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 0.5rem 1rem;
+        }
+        .effect-checkbox {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.9rem; color: rgba(255,255,255,0.8); cursor: pointer;
+        }
+        .effect-checkbox input {
+            width: 18px; height: 18px; accent-color: #4CAF50; cursor: pointer;
+        }
+
+        /* Close Button */
+        .settings-close {
+            display: block; width: 100%; margin-top: 1.5rem; padding: 0.8rem;
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px; color: #fff; font-family: 'Questrial', sans-serif;
+            font-size: 1rem; cursor: pointer; transition: background 0.2s;
+        }
+        .settings-close:hover { background: rgba(255,255,255,0.2); }
     </style>
 </head>
 <body>
@@ -361,12 +457,96 @@
     <div class="container" id="container"></div>
     <div class="vignette"></div>
 
+    <!-- Settings Button -->
+    <button class="settings-btn" id="settingsBtn" title="Settings">⚙</button>
+
+    <!-- Settings Panel -->
+    <div class="settings-overlay" id="settingsOverlay">
+        <div class="settings-panel">
+            <h2>Settings</h2>
+
+            <div class="settings-section">
+                <h3>Playback</h3>
+                <div class="setting-row">
+                    <span class="setting-label">Duration per album</span>
+                    <div class="range-container">
+                        <input type="range" id="settingDuration" min="5" max="30" value="15">
+                        <span class="range-value" id="durationValue">15s</span>
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <span class="setting-label">Shuffle</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="settingShuffle" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>Text Overlays</h3>
+                <div class="setting-row">
+                    <span class="setting-label">Show artist name</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="settingShowArtist" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <span class="setting-label">Show album title</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="settingShowTitle" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <span class="setting-label">Show genre/style</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="settingShowGenre" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <span class="setting-label">Show tracklist</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="settingShowTracklist" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <h3>Effects</h3>
+                <div class="setting-row">
+                    <span class="setting-label">Enable transitions</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="settingTransitions" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="effects-grid" id="effectsGrid">
+                    <label class="effect-checkbox"><input type="checkbox" data-effect="venetian-blinds" checked> Venetian Blinds</label>
+                    <label class="effect-checkbox"><input type="checkbox" data-effect="checkerboard" checked> Checkerboard</label>
+                    <label class="effect-checkbox"><input type="checkbox" data-effect="iris" checked> Iris</label>
+                    <label class="effect-checkbox"><input type="checkbox" data-effect="page-curl" checked> Page Curl</label>
+                    <label class="effect-checkbox"><input type="checkbox" data-effect="cube-spin" checked> Cube Spin</label>
+                    <label class="effect-checkbox"><input type="checkbox" data-effect="ripple" checked> Ripple</label>
+                    <label class="effect-checkbox"><input type="checkbox" data-effect="pixelate" checked> Pixelate</label>
+                    <label class="effect-checkbox"><input type="checkbox" data-effect="stretch-zoom" checked> Stretch Zoom</label>
+                    <label class="effect-checkbox"><input type="checkbox" data-effect="tunnel-zoom" checked> Tunnel Zoom</label>
+                </div>
+            </div>
+
+            <button class="settings-close" id="settingsClose">Close</button>
+        </div>
+    </div>
+
     <script>
         const DISCOGS_TOKEN = 'QdGTPELWMUMKooWoGWwMkSlePUTLbSbGuvkxUWdm';
         const SLIDE_DURATION = 15000;
         const CROSSFADE_DURATION = 800;
 
-        const EFFECTS = [
+        const ALL_EFFECTS = [
             'venetian-blinds',
             'checkerboard',
             'iris',
@@ -377,6 +557,76 @@
             'stretch-zoom',
             'tunnel-zoom'
         ];
+
+        // Settings with defaults
+        const defaultSettings = {
+            duration: 15,
+            shuffle: true,
+            showArtist: true,
+            showTitle: true,
+            showGenre: true,
+            showTracklist: true,
+            enableTransitions: true,
+            enabledEffects: [...ALL_EFFECTS]
+        };
+
+        let settings = { ...defaultSettings };
+
+        function loadSettings() {
+            try {
+                const saved = localStorage.getItem('vinylDisplaySettings');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    settings = { ...defaultSettings, ...parsed };
+                }
+            } catch (e) {
+                console.error('Error loading settings:', e);
+            }
+        }
+
+        function saveSettings() {
+            try {
+                localStorage.setItem('vinylDisplaySettings', JSON.stringify(settings));
+            } catch (e) {
+                console.error('Error saving settings:', e);
+            }
+        }
+
+        function getEnabledEffects() {
+            return settings.enableTransitions && settings.enabledEffects.length > 0
+                ? settings.enabledEffects
+                : ['none'];
+        }
+
+        // Auto-hide settings button
+        let inactivityTimer = null;
+        let settingsPanelOpen = false;
+
+        function showSettingsButton() {
+            const btn = document.getElementById('settingsBtn');
+            if (btn) btn.classList.add('visible');
+            resetInactivityTimer();
+        }
+
+        function hideSettingsButton() {
+            if (settingsPanelOpen) return;
+            const btn = document.getElementById('settingsBtn');
+            if (btn) btn.classList.remove('visible');
+        }
+
+        function resetInactivityTimer() {
+            if (inactivityTimer) clearTimeout(inactivityTimer);
+            if (!settingsPanelOpen) {
+                inactivityTimer = setTimeout(hideSettingsButton, 3000);
+            }
+        }
+
+        function setupInactivityListeners() {
+            const events = ['mousemove', 'click', 'keypress', 'touchstart', 'touchmove'];
+            events.forEach(event => {
+                document.addEventListener(event, showSettingsButton, { passive: true });
+            });
+        }
 
         let effectsQueue = [];
         let shuffledData = [];
@@ -430,8 +680,10 @@
         }
 
         function getNextEffect() {
-            if (effectsQueue.length === 0) {
-                effectsQueue = shuffle([...EFFECTS]);
+            const enabledEffects = getEnabledEffects();
+            if (enabledEffects[0] === 'none') return 'none';
+            if (effectsQueue.length === 0 || !effectsQueue.every(e => enabledEffects.includes(e))) {
+                effectsQueue = shuffle([...enabledEffects]);
             }
             return effectsQueue.pop();
         }
@@ -582,6 +834,7 @@
             // Artist (top)
             const artist = document.createElement('div');
             artist.className = 'artist';
+            if (!settings.showArtist) artist.style.visibility = 'hidden';
             
             // Middle section with genre/style (left), artwork (center), tracklist (right)
             const middleSection = document.createElement('div');
@@ -590,6 +843,7 @@
             // Genre and Style (left side)
             const leftContainer = document.createElement('div');
             leftContainer.className = 'side-text left';
+            if (!settings.showGenre) leftContainer.style.visibility = 'hidden';
             
             const genreSection = document.createElement('div');
             genreSection.className = 'side-text-content';
@@ -685,6 +939,7 @@
             // Tracklist (right side)
             const tracklistContainer = document.createElement('div');
             tracklistContainer.className = 'side-text right';
+            if (!settings.showTracklist) tracklistContainer.style.visibility = 'hidden';
             const tracklistLabel = document.createElement('div');
             tracklistLabel.className = 'side-text-label';
             tracklistLabel.textContent = 'Tracklist';
@@ -703,6 +958,7 @@
             // Title (bottom)
             const title = document.createElement('div');
             title.className = 'title';
+            if (!settings.showTitle) title.style.visibility = 'hidden';
             
             slideContent.appendChild(artist);
             slideContent.appendChild(middleSection);
@@ -806,7 +1062,16 @@
                 setTimeout(() => {
                     loading.classList.add('hidden');
                     showNextSlide();
-                    setInterval(showNextSlide, SLIDE_DURATION);
+                    // Use settings.duration, restart interval if duration changes
+                    let slideInterval = setInterval(showNextSlide, settings.duration * 1000);
+                    // Watch for duration changes
+                    const durationSlider = document.getElementById('settingDuration');
+                    if (durationSlider) {
+                        durationSlider.addEventListener('change', () => {
+                            clearInterval(slideInterval);
+                            slideInterval = setInterval(showNextSlide, settings.duration * 1000);
+                        });
+                    }
                 }, 500);
             } catch (error) {
                 console.error('Error initializing:', error);
@@ -863,11 +1128,119 @@
             }
         }
 
+        function applySettingsToUI() {
+            // Duration slider
+            const durationSlider = document.getElementById('settingDuration');
+            const durationValue = document.getElementById('durationValue');
+            if (durationSlider) {
+                durationSlider.value = settings.duration;
+                durationValue.textContent = settings.duration + 's';
+            }
+
+            // Toggles
+            const toggleMap = {
+                settingShuffle: 'shuffle',
+                settingShowArtist: 'showArtist',
+                settingShowTitle: 'showTitle',
+                settingShowGenre: 'showGenre',
+                settingShowTracklist: 'showTracklist',
+                settingTransitions: 'enableTransitions'
+            };
+
+            for (const [id, key] of Object.entries(toggleMap)) {
+                const el = document.getElementById(id);
+                if (el) el.checked = settings[key];
+            }
+
+            // Effect checkboxes
+            const effectCheckboxes = document.querySelectorAll('#effectsGrid input[data-effect]');
+            effectCheckboxes.forEach(cb => {
+                cb.checked = settings.enabledEffects.includes(cb.dataset.effect);
+            });
+        }
+
+        function setupSettingsPanel() {
+            const settingsBtn = document.getElementById('settingsBtn');
+            const settingsOverlay = document.getElementById('settingsOverlay');
+            const settingsClose = document.getElementById('settingsClose');
+
+            // Open settings
+            settingsBtn.addEventListener('click', () => {
+                settingsOverlay.classList.add('open');
+                settingsPanelOpen = true;
+                settingsBtn.classList.add('visible');
+            });
+
+            // Close settings
+            const closeSettings = () => {
+                settingsOverlay.classList.remove('open');
+                settingsPanelOpen = false;
+                resetInactivityTimer();
+            };
+
+            settingsClose.addEventListener('click', closeSettings);
+            settingsOverlay.addEventListener('click', (e) => {
+                if (e.target === settingsOverlay) closeSettings();
+            });
+
+            // Duration slider
+            const durationSlider = document.getElementById('settingDuration');
+            const durationValue = document.getElementById('durationValue');
+            durationSlider.addEventListener('input', () => {
+                settings.duration = parseInt(durationSlider.value);
+                durationValue.textContent = settings.duration + 's';
+                saveSettings();
+            });
+
+            // Toggle switches
+            const toggleMap = {
+                settingShuffle: 'shuffle',
+                settingShowArtist: 'showArtist',
+                settingShowTitle: 'showTitle',
+                settingShowGenre: 'showGenre',
+                settingShowTracklist: 'showTracklist',
+                settingTransitions: 'enableTransitions'
+            };
+
+            for (const [id, key] of Object.entries(toggleMap)) {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('change', () => {
+                        settings[key] = el.checked;
+                        saveSettings();
+                    });
+                }
+            }
+
+            // Effect checkboxes
+            const effectCheckboxes = document.querySelectorAll('#effectsGrid input[data-effect]');
+            effectCheckboxes.forEach(cb => {
+                cb.addEventListener('change', () => {
+                    const effect = cb.dataset.effect;
+                    if (cb.checked) {
+                        if (!settings.enabledEffects.includes(effect)) {
+                            settings.enabledEffects.push(effect);
+                        }
+                    } else {
+                        settings.enabledEffects = settings.enabledEffects.filter(e => e !== effect);
+                    }
+                    effectsQueue = []; // Reset queue when effects change
+                    saveSettings();
+                });
+            });
+        }
+
         function init() {
             const welcomeScreen = document.getElementById('welcomeScreen');
             const loading = document.getElementById('loading');
             const usernameInput = document.getElementById('usernameInput');
             const startButton = document.getElementById('startButton');
+
+            // Load and apply settings
+            loadSettings();
+            applySettingsToUI();
+            setupSettingsPanel();
+            setupInactivityListeners();
 
             // Hide loading screen initially
             loading.style.display = 'none';
