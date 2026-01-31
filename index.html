@@ -2066,22 +2066,24 @@
                 welcomeScreen.classList.add('hidden');
                 loading.style.display = 'flex';
 
-                // Process box sets if enabled
-                if (settings.expandBoxSets) {
-                    const loadingText = document.querySelector('.loading-text');
-                    if (loadingText) loadingText.textContent = 'Processing box sets...';
-                    try {
-                        collectionData = await processBoxSets(collectionData);
-                    } catch (boxSetError) {
-                        console.error('[BoxSet] Processing failed:', boxSetError);
-                        // Continue with unexpanded collection
-                        if (loadingText) loadingText.textContent = 'Box set processing failed, continuing...';
-                        await new Promise(r => setTimeout(r, 1500)); // Brief pause to show message
-                    }
-                }
-
-                // Start the slideshow
+                // Start slideshow immediately with raw collection
+                // Box sets will be processed in background after first slide shows
                 await startSlideshow(collectionData);
+
+                // Process box sets in background (after slideshow starts)
+                if (settings.expandBoxSets) {
+                    setTimeout(async () => {
+                        try {
+                            console.log('[BoxSet] Starting background processing...');
+                            const expandedData = await processBoxSets(collectionData);
+                            // Update the shuffled data with expanded collection
+                            shuffledData = settings.shuffle ? shuffle(expandedData) : expandedData;
+                            console.log(`[BoxSet] Background processing complete. Collection now has ${shuffledData.length} items.`);
+                        } catch (boxSetError) {
+                            console.error('[BoxSet] Background processing failed:', boxSetError);
+                        }
+                    }, 5000); // Wait 5 seconds after slideshow starts
+                }
 
             } catch (error) {
                 welcomeError.textContent = error.message;
