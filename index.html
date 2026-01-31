@@ -249,6 +249,217 @@
             100% { transform: perspective(800px) translateZ(0) rotateZ(0deg); opacity: 1; }
         }
 
+        /* ========== VHS / RETRO BROADCAST EFFECTS ========== */
+
+        /* Star Wipe - cheesy star-shaped mask reveal */
+        .star-wipe-mask {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            clip-path: polygon(50% 50%, 50% 50%, 50% 50%, 50% 50%, 50% 50%,
+                               50% 50%, 50% 50%, 50% 50%, 50% 50%, 50% 50%);
+        }
+        .star-wipe-mask.animate {
+            animation: star-wipe 1.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        @keyframes star-wipe {
+            0% { clip-path: polygon(50% 50%, 50% 50%, 50% 50%, 50% 50%, 50% 50%,
+                                    50% 50%, 50% 50%, 50% 50%, 50% 50%, 50% 50%); }
+            100% { clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%,
+                                      50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+        }
+
+        /* Clock Wipe - pie-slice sweep reveal */
+        .clock-wipe-mask {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            clip-path: polygon(50% 50%, 50% 0%, 50% 0%);
+        }
+        .clock-wipe-mask.animate {
+            animation: clock-wipe 1.5s linear forwards;
+        }
+        @keyframes clock-wipe {
+            0% { clip-path: polygon(50% 50%, 50% 0%, 50% 0%); }
+            12.5% { clip-path: polygon(50% 50%, 50% 0%, 100% 0%); }
+            25% { clip-path: polygon(50% 50%, 50% 0%, 100% 0%, 100% 50%); }
+            37.5% { clip-path: polygon(50% 50%, 50% 0%, 100% 0%, 100% 100%); }
+            50% { clip-path: polygon(50% 50%, 50% 0%, 100% 0%, 100% 100%, 50% 100%); }
+            62.5% { clip-path: polygon(50% 50%, 50% 0%, 100% 0%, 100% 100%, 0% 100%); }
+            75% { clip-path: polygon(50% 50%, 50% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 50%); }
+            87.5% { clip-path: polygon(50% 50%, 50% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%); }
+            100% { clip-path: polygon(50% 50%, 50% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%, 50% 0%); }
+        }
+
+        /* Barn Door Wipe - two panels opening from center */
+        .barn-door-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            overflow: hidden;
+        }
+        .barn-door-left, .barn-door-right {
+            position: absolute; top: 0; width: 50%; height: 100%;
+            background: #0a0a0a;
+            transition: transform 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .barn-door-left { left: 0; }
+        .barn-door-right { right: 0; }
+        .barn-door-container.open .barn-door-left { transform: translateX(-100%); }
+        .barn-door-container.open .barn-door-right { transform: translateX(100%); }
+
+        /* Flash Frame - hard cut with brief white flash */
+        .flash-frame.animate {
+            animation: flash-frame 0.3s steps(1) forwards;
+        }
+        .flash-frame::after {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; opacity: 0; pointer-events: none;
+        }
+        .flash-frame.animate::after {
+            animation: flash-overlay 0.3s steps(1) forwards;
+        }
+        @keyframes flash-frame {
+            0% { opacity: 0; }
+            33% { opacity: 0; }
+            34% { opacity: 1; }
+            100% { opacity: 1; }
+        }
+        @keyframes flash-overlay {
+            0% { opacity: 0; }
+            10% { opacity: 1; }
+            40% { opacity: 1; }
+            41% { opacity: 0; }
+            100% { opacity: 0; }
+        }
+
+        /* Channel Switch Glitch - RGB split and jitter */
+        .channel-glitch.animate {
+            animation: channel-glitch 0.5s steps(10) forwards;
+        }
+        @keyframes channel-glitch {
+            0% { filter: none; transform: translateX(0) scaleY(1); opacity: 0; }
+            10% { filter: drop-shadow(-4px 0 0 rgba(255,0,0,0.8)) drop-shadow(4px 0 0 rgba(0,255,255,0.8));
+                  transform: translateX(-3px) scaleY(1.02); opacity: 0.7; }
+            20% { filter: drop-shadow(3px 0 0 rgba(255,0,0,0.6)) drop-shadow(-3px 0 0 rgba(0,255,255,0.6));
+                  transform: translateX(4px) scaleY(0.98); opacity: 0.8; }
+            30% { filter: drop-shadow(-2px 0 0 rgba(255,0,0,0.9)) drop-shadow(2px 0 0 rgba(0,255,255,0.9));
+                  transform: translateX(-2px) scaleY(1.01); opacity: 0.9; }
+            40% { filter: drop-shadow(2px 0 0 rgba(255,0,0,0.4)) drop-shadow(-2px 0 0 rgba(0,255,255,0.4));
+                  transform: translateX(1px) scaleY(1); opacity: 1; }
+            50% { filter: drop-shadow(-1px 0 0 rgba(255,0,0,0.2)) drop-shadow(1px 0 0 rgba(0,255,255,0.2));
+                  transform: translateX(-1px); opacity: 1; }
+            100% { filter: none; transform: translateX(0) scaleY(1); opacity: 1; }
+        }
+
+        /* VHS Tracking Roll - horizontal distortion bar moving down */
+        .vhs-tracking-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            overflow: hidden;
+        }
+        .vhs-tracking-line {
+            position: absolute; left: 0; width: 100%; height: 30px;
+            background: linear-gradient(180deg,
+                transparent 0%,
+                rgba(255,255,255,0.1) 20%,
+                rgba(255,255,255,0.3) 50%,
+                rgba(255,255,255,0.1) 80%,
+                transparent 100%);
+            transform: translateY(-100%);
+            mix-blend-mode: overlay;
+        }
+        .vhs-tracking-container.animate .vhs-tracking-line {
+            animation: vhs-tracking-roll 1.5s ease-out forwards;
+        }
+        @keyframes vhs-tracking-roll {
+            0% { transform: translateY(-30px); }
+            100% { transform: translateY(calc(100vh + 30px)); }
+        }
+
+        /* Scanline Intensify - scanlines pulse during transition */
+        .scanline-intensify {
+            position: relative;
+        }
+        .scanline-intensify::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent 0px,
+                transparent 2px,
+                rgba(0,0,0,0.3) 2px,
+                rgba(0,0,0,0.3) 4px
+            );
+            opacity: 0; pointer-events: none; z-index: 10;
+        }
+        .scanline-intensify.animate::before {
+            animation: scanline-pulse 1.2s ease-out forwards;
+        }
+        .scanline-intensify.animate {
+            animation: scanline-reveal 1.2s ease-out forwards;
+        }
+        @keyframes scanline-pulse {
+            0% { opacity: 0; }
+            20% { opacity: 0.8; }
+            50% { opacity: 0.6; }
+            100% { opacity: 0; }
+        }
+        @keyframes scanline-reveal {
+            0% { opacity: 0; }
+            30% { opacity: 1; }
+            100% { opacity: 1; }
+        }
+
+        /* Chroma Bleed - color separation/smear effect */
+        .chroma-bleed.animate {
+            animation: chroma-bleed 0.8s ease-out forwards;
+        }
+        @keyframes chroma-bleed {
+            0% { filter: none; opacity: 0; transform: translateX(0); }
+            15% { filter: drop-shadow(-6px 0 0 rgba(255,0,0,0.7)) drop-shadow(6px 0 0 rgba(0,200,255,0.7)) blur(2px);
+                  opacity: 0.8; transform: translateX(-2px); }
+            30% { filter: drop-shadow(-4px 0 0 rgba(255,0,0,0.5)) drop-shadow(4px 0 0 rgba(0,200,255,0.5)) blur(1px);
+                  opacity: 0.9; transform: translateX(1px); }
+            50% { filter: drop-shadow(-2px 0 0 rgba(255,0,0,0.3)) drop-shadow(2px 0 0 rgba(0,200,255,0.3));
+                  opacity: 1; transform: translateX(0); }
+            100% { filter: none; opacity: 1; transform: translateX(0); }
+        }
+
+        /* Posterize Burst - brief posterized color look */
+        .posterize-burst.animate {
+            animation: posterize-burst 0.6s steps(4) forwards;
+        }
+        @keyframes posterize-burst {
+            0% { filter: contrast(100%) saturate(100%); opacity: 0; }
+            20% { filter: contrast(200%) saturate(200%) brightness(1.1); opacity: 0.8; }
+            40% { filter: contrast(300%) saturate(150%) brightness(1.2); opacity: 1; }
+            60% { filter: contrast(200%) saturate(120%); opacity: 1; }
+            80% { filter: contrast(150%) saturate(110%); opacity: 1; }
+            100% { filter: contrast(100%) saturate(100%); opacity: 1; }
+        }
+
+        /* Static Burst - TV noise/static effect */
+        .static-burst {
+            position: relative;
+        }
+        .static-burst::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            opacity: 0; mix-blend-mode: overlay; pointer-events: none; z-index: 10;
+        }
+        .static-burst.animate {
+            animation: static-reveal 0.5s ease-out forwards;
+        }
+        .static-burst.animate::before {
+            animation: static-noise 0.5s steps(5) forwards;
+        }
+        @keyframes static-reveal {
+            0% { opacity: 0; }
+            30% { opacity: 1; }
+            100% { opacity: 1; }
+        }
+        @keyframes static-noise {
+            0% { opacity: 0.8; transform: scale(1.5); }
+            20% { opacity: 0.9; transform: scale(2) translateX(10%); }
+            40% { opacity: 0.7; transform: scale(1.8) translateX(-5%); }
+            60% { opacity: 0.4; transform: scale(1.2); }
+            80% { opacity: 0.2; transform: scale(1); }
+            100% { opacity: 0; transform: scale(1); }
+        }
+
         .loading {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #0a0a0a; display: flex; flex-direction: column;
@@ -582,6 +793,17 @@
                     <label class="effect-checkbox"><input type="checkbox" data-effect="pixelate" checked> Pixelate</label>
                     <label class="effect-checkbox"><input type="checkbox" data-effect="stretch-zoom" checked> Stretch Zoom</label>
                     <label class="effect-checkbox"><input type="checkbox" data-effect="tunnel-zoom" checked> Tunnel Zoom</label>
+                    <!-- VHS / Retro Broadcast Effects -->
+                    <label class="effect-checkbox"><input type="checkbox" data-effect="star-wipe" checked> Star Wipe</label>
+                    <label class="effect-checkbox"><input type="checkbox" data-effect="clock-wipe" checked> Clock Wipe</label>
+                    <label class="effect-checkbox"><input type="checkbox" data-effect="barn-door" checked> Barn Door</label>
+                    <label class="effect-checkbox"><input type="checkbox" data-effect="flash-frame" checked> Flash Frame</label>
+                    <label class="effect-checkbox"><input type="checkbox" data-effect="channel-glitch" checked> Channel Glitch</label>
+                    <label class="effect-checkbox"><input type="checkbox" data-effect="vhs-tracking" checked> VHS Tracking</label>
+                    <label class="effect-checkbox"><input type="checkbox" data-effect="scanline-intensify" checked> Scanline Pulse</label>
+                    <label class="effect-checkbox"><input type="checkbox" data-effect="chroma-bleed" checked> Chroma Bleed</label>
+                    <label class="effect-checkbox"><input type="checkbox" data-effect="posterize-burst" checked> Posterize Burst</label>
+                    <label class="effect-checkbox"><input type="checkbox" data-effect="static-burst" checked> Static Burst</label>
                 </div>
             </div>
 
@@ -628,7 +850,18 @@
             'ripple',
             'pixelate',
             'stretch-zoom',
-            'tunnel-zoom'
+            'tunnel-zoom',
+            // VHS / Retro Broadcast Effects
+            'star-wipe',
+            'clock-wipe',
+            'barn-door',
+            'flash-frame',
+            'channel-glitch',
+            'vhs-tracking',
+            'scanline-intensify',
+            'chroma-bleed',
+            'posterize-burst',
+            'static-burst'
         ];
 
         // Settings with defaults
@@ -1432,7 +1665,13 @@
             const artworkContainer = document.createElement('div');
             artworkContainer.className = 'artwork-container';
             
-            if (['ripple', 'pixelate', 'stretch-zoom', 'tunnel-zoom', 'page-curl', 'cube-spin'].includes(effect)) {
+            // Simple class-based effects (applied directly to container)
+            const simpleEffects = [
+                'ripple', 'pixelate', 'stretch-zoom', 'tunnel-zoom', 'page-curl', 'cube-spin',
+                'channel-glitch', 'chroma-bleed', 'posterize-burst', 'scanline-intensify',
+                'flash-frame', 'static-burst'
+            ];
+            if (simpleEffects.includes(effect)) {
                 artworkContainer.classList.add(effect);
             }
 
@@ -1441,7 +1680,7 @@
                 img.className = 'artwork';
                 img.src = releaseData.imageUrl;
                 img.alt = `${record.Artist} - ${record.Title}`;
-                
+
                 if (effect === 'venetian-blinds') {
                     img.style.position = 'absolute';
                     img.style.top = '0';
@@ -1477,6 +1716,45 @@
                     mask.className = 'iris-mask';
                     mask.appendChild(img);
                     artworkContainer.appendChild(mask);
+                }
+                else if (effect === 'star-wipe') {
+                    const mask = document.createElement('div');
+                    mask.className = 'star-wipe-mask';
+                    mask.appendChild(img);
+                    artworkContainer.appendChild(mask);
+                }
+                else if (effect === 'clock-wipe') {
+                    const mask = document.createElement('div');
+                    mask.className = 'clock-wipe-mask';
+                    mask.appendChild(img);
+                    artworkContainer.appendChild(mask);
+                }
+                else if (effect === 'barn-door') {
+                    img.style.position = 'absolute';
+                    img.style.top = '0';
+                    img.style.left = '0';
+                    artworkContainer.appendChild(img);
+                    const barnDoor = document.createElement('div');
+                    barnDoor.className = 'barn-door-container';
+                    const leftDoor = document.createElement('div');
+                    leftDoor.className = 'barn-door-left';
+                    const rightDoor = document.createElement('div');
+                    rightDoor.className = 'barn-door-right';
+                    barnDoor.appendChild(leftDoor);
+                    barnDoor.appendChild(rightDoor);
+                    artworkContainer.appendChild(barnDoor);
+                }
+                else if (effect === 'vhs-tracking') {
+                    img.style.position = 'absolute';
+                    img.style.top = '0';
+                    img.style.left = '0';
+                    artworkContainer.appendChild(img);
+                    const tracking = document.createElement('div');
+                    tracking.className = 'vhs-tracking-container';
+                    const line = document.createElement('div');
+                    line.className = 'vhs-tracking-line';
+                    tracking.appendChild(line);
+                    artworkContainer.appendChild(tracking);
                 }
                 else {
                     artworkContainer.appendChild(img);
@@ -1531,7 +1809,7 @@
 
         function triggerEffect(slide) {
             const effect = slide.dataset.effect;
-            
+
             setTimeout(() => {
                 if (effect === 'venetian-blinds') {
                     const blinds = slide.querySelector('.blinds-container');
@@ -1545,12 +1823,33 @@
                     const mask = slide.querySelector('.iris-mask');
                     if (mask) mask.classList.add('animate');
                 }
-                else if (['page-curl', 'cube-spin', 'ripple', 'pixelate', 'stretch-zoom', 'tunnel-zoom'].includes(effect)) {
+                else if (effect === 'star-wipe') {
+                    const mask = slide.querySelector('.star-wipe-mask');
+                    if (mask) mask.classList.add('animate');
+                }
+                else if (effect === 'clock-wipe') {
+                    const mask = slide.querySelector('.clock-wipe-mask');
+                    if (mask) mask.classList.add('animate');
+                }
+                else if (effect === 'barn-door') {
+                    const barnDoor = slide.querySelector('.barn-door-container');
+                    if (barnDoor) barnDoor.classList.add('open');
+                }
+                else if (effect === 'vhs-tracking') {
+                    const tracking = slide.querySelector('.vhs-tracking-container');
+                    if (tracking) tracking.classList.add('animate');
+                }
+                // All other effects (including new VHS effects) apply .animate to container
+                else if ([
+                    'page-curl', 'cube-spin', 'ripple', 'pixelate', 'stretch-zoom', 'tunnel-zoom',
+                    'channel-glitch', 'chroma-bleed', 'posterize-burst', 'scanline-intensify',
+                    'flash-frame', 'static-burst'
+                ].includes(effect)) {
                     const container = slide.querySelector('.artwork-container');
                     if (container) container.classList.add('animate');
                 }
             }, 100);
-            
+
             // Start typewriter sequence
             startTypewriterSequence(slide, slide.recordData, slide.releaseData);
         }
