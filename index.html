@@ -1032,6 +1032,43 @@
         let currentSlide = null;
         let nextSlideReady = null;
 
+        // Unified API queue - ensures max 1 request per second across all callers
+        const unifiedApiQueue = [];
+        let isProcessingUnifiedQueue = false;
+        let lastApiCallTime = 0;
+
+        async function queuedApiCall(fn) {
+            return new Promise((resolve, reject) => {
+                unifiedApiQueue.push({ fn, resolve, reject });
+                processUnifiedApiQueue();
+            });
+        }
+
+        async function processUnifiedApiQueue() {
+            if (isProcessingUnifiedQueue || unifiedApiQueue.length === 0) return;
+            isProcessingUnifiedQueue = true;
+
+            while (unifiedApiQueue.length > 0) {
+                const { fn, resolve, reject } = unifiedApiQueue.shift();
+
+                // Ensure minimum 1 second between requests
+                const now = Date.now();
+                const timeSinceLastCall = now - lastApiCallTime;
+                if (timeSinceLastCall < 1000) {
+                    await new Promise(r => setTimeout(r, 1000 - timeSinceLastCall));
+                }
+
+                try {
+                    lastApiCallTime = Date.now();
+                    const result = await fn();
+                    resolve(result);
+                } catch (error) {
+                    reject(error);
+                }
+            }
+
+            isProcessingUnifiedQueue = false;
+        }
 
         function shuffle(array) {
             const shuffled = [...array];
@@ -1106,14 +1143,16 @@
             if (releaseCache.has(releaseId)) return releaseCache.get(releaseId);
 
             try {
-                const response = await fetchWithTimeout(`https://api.discogs.com/releases/${releaseId}`, {
-                    headers: {
-                        'Authorization': `Discogs token=${DISCOGS_TOKEN}`,
-                        'User-Agent': 'VinylDisplayApp/1.0'
-                    }
+                const data = await queuedApiCall(async () => {
+                    const response = await fetchWithTimeout(`https://api.discogs.com/releases/${releaseId}`, {
+                        headers: {
+                            'Authorization': `Discogs token=${DISCOGS_TOKEN}`,
+                            'User-Agent': 'VinylDisplayApp/1.0'
+                        }
+                    });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return response.json();
                 });
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const data = await response.json();
                 const releaseData = {
                     imageUrl: data.images && data.images[0] ? data.images[0].uri : null,
                     genres: data.genres || [],
@@ -1135,8 +1174,6 @@
 
         // Box Set Expansion System
         let boxSetCache = {};
-        let apiRequestQueue = [];
-        let isProcessingQueue = false;
         const BOX_SET_PROCESS_TIMEOUT = 30000; // 30 seconds max for entire box set processing
         const SINGLE_REQUEST_TIMEOUT = 10000; // 10 seconds per request
 
@@ -1337,37 +1374,8 @@
             return subAlbums.length > 0 ? subAlbums : null;
         }
 
-        // Throttled API request queue
-        async function queueApiRequest(fn) {
-            return new Promise((resolve, reject) => {
-                apiRequestQueue.push({ fn, resolve, reject });
-                processApiQueue();
-            });
-        }
-
-        async function processApiQueue() {
-            if (isProcessingQueue || apiRequestQueue.length === 0) return;
-            isProcessingQueue = true;
-
-            while (apiRequestQueue.length > 0) {
-                const { fn, resolve, reject } = apiRequestQueue.shift();
-                try {
-                    const result = await fn();
-                    resolve(result);
-                } catch (error) {
-                    reject(error);
-                }
-                // Wait 1 second between requests to respect rate limits
-                if (apiRequestQueue.length > 0) {
-                    await new Promise(r => setTimeout(r, 1000));
-                }
-            }
-
-            isProcessingQueue = false;
-        }
-
         async function searchAlbumCover(artist, albumTitle) {
-            return queueApiRequest(async () => {
+            return queuedApiCall(async () => {
                 try {
                     const query = encodeURIComponent(`${artist} ${albumTitle}`);
                     const response = await fetchWithTimeout(
@@ -2082,7 +2090,7 @@
                         } catch (boxSetError) {
                             console.error('[BoxSet] Background processing failed:', boxSetError);
                         }
-                    }, 5000); // Wait 5 seconds after slideshow starts
+                    }, 30000); // Wait 30 seconds after slideshow starts
                 }
 
             } catch (error) {
