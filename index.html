@@ -1032,6 +1032,18 @@
         let currentSlide = null;
         let nextSlideReady = null;
 
+        // API throttling - Discogs allows 60 req/min, so 1 per second is safe
+        let lastApiCall = 0;
+        async function throttledFetch(url, options) {
+            const now = Date.now();
+            const timeSinceLastCall = now - lastApiCall;
+            if (timeSinceLastCall < 1000) {
+                await new Promise(r => setTimeout(r, 1000 - timeSinceLastCall));
+            }
+            lastApiCall = Date.now();
+            return fetchWithTimeout(url, options);
+        }
+
         function shuffle(array) {
             const shuffled = [...array];
             for (let i = shuffled.length - 1; i > 0; i--) {
@@ -1123,9 +1135,9 @@
                         await new Promise(r => setTimeout(r, 1000 * attempt));
                     }
 
-                    // No auth token = per-IP rate limit (25/min) instead of shared token limit
-                    const response = await fetchWithTimeout(`https://api.discogs.com/releases/${releaseId}`, {
+                    const response = await throttledFetch(`https://api.discogs.com/releases/${releaseId}`, {
                         headers: {
+                            'Authorization': `Discogs token=${DISCOGS_TOKEN}`,
                             'User-Agent': 'VinylDisplayApp/1.0'
                         }
                     });
