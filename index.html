@@ -1032,17 +1032,6 @@
         let currentSlide = null;
         let nextSlideReady = null;
 
-        // API throttling - Discogs allows 60 req/min, so 1 per second is safe
-        let lastApiCall = 0;
-        async function throttledFetch(url, options) {
-            const now = Date.now();
-            const timeSinceLastCall = now - lastApiCall;
-            if (timeSinceLastCall < 1000) {
-                await new Promise(r => setTimeout(r, 1000 - timeSinceLastCall));
-            }
-            lastApiCall = Date.now();
-            return fetchWithTimeout(url, options);
-        }
 
         function shuffle(array) {
             const shuffled = [...array];
@@ -1114,75 +1103,34 @@
                 };
             }
 
-            // Check cache - but only return if it has actual data (not a failed fetch)
-            if (releaseCache.has(releaseId)) {
-                const cached = releaseCache.get(releaseId);
-                // Only use cache if it has an imageUrl (successful fetch)
-                if (cached.imageUrl || cached._verified) {
-                    return cached;
-                }
+            if (releaseCache.has(releaseId)) return releaseCache.get(releaseId);
+
+            try {
+                const response = await fetchWithTimeout(`https://api.discogs.com/releases/${releaseId}`, {
+                    headers: {
+                        'Authorization': `Discogs token=${DISCOGS_TOKEN}`,
+                        'User-Agent': 'VinylDisplayApp/1.0'
+                    }
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                const releaseData = {
+                    imageUrl: data.images && data.images[0] ? data.images[0].uri : null,
+                    genres: data.genres || [],
+                    styles: data.styles || [],
+                    tracklist: data.tracklist || [],
+                    tracklistTitles: data.tracklist ? data.tracklist.map(t => t.title || 'Untitled').filter(Boolean) : [],
+                    formats: data.formats || [],
+                    title: data.title || '',
+                    artists: data.artists || []
+                };
+                releaseCache.set(releaseId, releaseData);
+                return releaseData;
+            } catch (error) {
+                console.warn(`[API] Error fetching release ${releaseId}:`, error.message);
+                // DON'T cache failures - return fallback but allow retry next time
+                return { imageUrl: null, genres: [], styles: [], tracklist: [], tracklistTitles: [], formats: [], title: '', artists: [] };
             }
-
-            // Retry logic for rate limiting
-            const maxRetries = 2;
-            let lastError = null;
-
-            for (let attempt = 0; attempt <= maxRetries; attempt++) {
-                try {
-                    // Add delay between retries (and small delay to avoid rate limits)
-                    if (attempt > 0) {
-                        console.log(`[API] Retry ${attempt}/${maxRetries} for release ${releaseId}`);
-                        await new Promise(r => setTimeout(r, 1000 * attempt));
-                    }
-
-                    const response = await throttledFetch(`https://api.discogs.com/releases/${releaseId}`, {
-                        headers: {
-                            'Authorization': `Discogs token=${DISCOGS_TOKEN}`,
-                            'User-Agent': 'VinylDisplayApp/1.0'
-                        }
-                    });
-
-                    // Handle rate limiting specifically
-                    if (response.status === 429) {
-                        const retryAfter = response.headers.get('Retry-After') || 60;
-                        console.warn(`[API] Rate limited on release ${releaseId}. Retry after ${retryAfter}s`);
-                        lastError = new Error(`Rate limited (429)`);
-                        await new Promise(r => setTimeout(r, Math.min(parseInt(retryAfter) * 1000, 5000)));
-                        continue;
-                    }
-
-                    if (!response.ok) {
-                        lastError = new Error(`HTTP ${response.status}`);
-                        console.warn(`[API] Failed to fetch release ${releaseId}: HTTP ${response.status}`);
-                        continue;
-                    }
-
-                    const data = await response.json();
-                    const releaseData = {
-                        imageUrl: data.images && data.images[0] ? data.images[0].uri : null,
-                        genres: data.genres || [],
-                        styles: data.styles || [],
-                        tracklist: data.tracklist || [],
-                        tracklistTitles: data.tracklist ? data.tracklist.map(t => t.title || 'Untitled').filter(Boolean) : [],
-                        formats: data.formats || [],
-                        title: data.title || '',
-                        artists: data.artists || [],
-                        _verified: true  // Mark as successfully fetched
-                    };
-
-                    // Only cache successful fetches
-                    releaseCache.set(releaseId, releaseData);
-                    return releaseData;
-
-                } catch (error) {
-                    lastError = error;
-                    console.warn(`[API] Error fetching release ${releaseId} (attempt ${attempt + 1}):`, error.message);
-                }
-            }
-
-            // All retries failed - return fallback but DON'T cache it
-            console.error(`[API] All retries failed for release ${releaseId}:`, lastError?.message);
-            return { imageUrl: null, genres: [], styles: [], tracklist: [], tracklistTitles: [], formats: [], title: '', artists: [] };
         }
 
         // Box Set Expansion System
