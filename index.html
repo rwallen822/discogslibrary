@@ -408,6 +408,54 @@
             font-size: 1rem; cursor: pointer; transition: background 0.2s;
         }
         .settings-close:hover { background: rgba(255,255,255,0.2); }
+
+        /* Box Set Manager */
+        .boxset-manager-btn {
+            width: 100%; padding: 0.6rem 1rem;
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 4px; color: #fff; font-family: 'Questrial', sans-serif;
+            font-size: 0.9rem; cursor: pointer; transition: background 0.2s;
+        }
+        .boxset-manager-btn:hover { background: rgba(255,255,255,0.2); }
+
+        .boxset-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 4000;
+            display: none; align-items: center; justify-content: center;
+        }
+        .boxset-modal.open { display: flex; }
+        .boxset-panel {
+            background: #1a1a1a; border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 12px; padding: 2rem; width: 90%; max-width: 600px;
+            max-height: 80vh; overflow-y: auto;
+            font-family: 'Questrial', sans-serif; color: #fff;
+        }
+        .boxset-panel h2 { margin: 0 0 1rem 0; font-size: 1.3rem; font-weight: 400; }
+        .boxset-list { margin-bottom: 1.5rem; }
+        .boxset-item {
+            display: flex; align-items: center; gap: 1rem;
+            padding: 0.8rem; margin-bottom: 0.5rem;
+            background: rgba(255,255,255,0.05); border-radius: 6px;
+        }
+        .boxset-item-info { flex: 1; }
+        .boxset-item-title { font-size: 1rem; margin-bottom: 0.2rem; }
+        .boxset-item-artist { font-size: 0.85rem; color: rgba(255,255,255,0.5); }
+        .boxset-item-count { font-size: 0.8rem; color: rgba(255,255,255,0.4); }
+        .boxset-empty {
+            text-align: center; padding: 2rem;
+            color: rgba(255,255,255,0.4); font-style: italic;
+        }
+        .boxset-loading {
+            text-align: center; padding: 2rem;
+            color: rgba(255,255,255,0.6);
+        }
+        .boxset-close {
+            display: block; width: 100%; padding: 0.8rem;
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px; color: #fff; font-family: 'Questrial', sans-serif;
+            font-size: 1rem; cursor: pointer; transition: background 0.2s;
+        }
+        .boxset-close:hover { background: rgba(255,255,255,0.2); }
     </style>
 </head>
 <body>
@@ -537,7 +585,32 @@
                 </div>
             </div>
 
+            <div class="settings-section">
+                <h3>Box Sets</h3>
+                <div class="setting-row">
+                    <span class="setting-label">Expand box sets</span>
+                    <label class="toggle">
+                        <input type="checkbox" id="settingExpandBoxSets" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-row">
+                    <button class="boxset-manager-btn" id="boxSetManagerBtn">Manage Box Sets</button>
+                </div>
+            </div>
+
             <button class="settings-close" id="settingsClose">Close</button>
+        </div>
+    </div>
+
+    <!-- Box Set Manager Modal -->
+    <div class="boxset-modal" id="boxSetModal">
+        <div class="boxset-panel">
+            <h2>Box Set Manager</h2>
+            <div class="boxset-list" id="boxSetList">
+                <div class="boxset-empty">No box sets detected yet. Load your collection first.</div>
+            </div>
+            <button class="boxset-close" id="boxSetClose">Close</button>
         </div>
     </div>
 
@@ -567,7 +640,8 @@
             showGenre: true,
             showTracklist: true,
             enableTransitions: true,
-            enabledEffects: [...ALL_EFFECTS]
+            enabledEffects: [...ALL_EFFECTS],
+            expandBoxSets: true
         };
 
         let settings = { ...defaultSettings };
@@ -688,7 +762,21 @@
             return effectsQueue.pop();
         }
 
-        async function fetchReleaseData(releaseId) {
+        async function fetchReleaseData(releaseId, virtualRecord = null) {
+            // Handle virtual albums (from box set expansion)
+            if (virtualRecord && virtualRecord.isVirtual) {
+                return {
+                    imageUrl: virtualRecord.virtualImageUrl,
+                    genres: virtualRecord.virtualGenres || [],
+                    styles: virtualRecord.virtualStyles || [],
+                    tracklist: [],
+                    tracklistTitles: virtualRecord.virtualTracks || [],
+                    formats: [],
+                    title: virtualRecord.Title,
+                    artists: []
+                };
+            }
+
             if (releaseCache.has(releaseId)) return releaseCache.get(releaseId);
             try {
                 const response = await fetch(`https://api.discogs.com/releases/${releaseId}`, {
@@ -703,15 +791,375 @@
                     imageUrl: data.images && data.images[0] ? data.images[0].uri : null,
                     genres: data.genres || [],
                     styles: data.styles || [],
-                    tracklist: data.tracklist ? data.tracklist.map(t => t.title || 'Untitled').filter(Boolean) : []
+                    tracklist: data.tracklist || [],
+                    tracklistTitles: data.tracklist ? data.tracklist.map(t => t.title || 'Untitled').filter(Boolean) : [],
+                    formats: data.formats || [],
+                    title: data.title || '',
+                    artists: data.artists || []
                 };
                 releaseCache.set(releaseId, releaseData);
                 return releaseData;
             } catch (error) {
-                const fallback = { imageUrl: null, genres: [], styles: [], tracklist: [] };
+                const fallback = { imageUrl: null, genres: [], styles: [], tracklist: [], tracklistTitles: [], formats: [], title: '', artists: [] };
                 releaseCache.set(releaseId, fallback);
                 return fallback;
             }
+        }
+
+        // Box Set Expansion System
+        let boxSetCache = {};
+        let apiRequestQueue = [];
+        let isProcessingQueue = false;
+
+        function loadBoxSetCache() {
+            try {
+                const saved = localStorage.getItem('vinylBoxSetCache');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    // Invalidate entries older than 7 days
+                    const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+                    for (const [key, value] of Object.entries(parsed)) {
+                        if (value.lastUpdated && value.lastUpdated > sevenDaysAgo) {
+                            boxSetCache[key] = value;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Error loading box set cache:', e);
+            }
+        }
+
+        function saveBoxSetCache() {
+            try {
+                localStorage.setItem('vinylBoxSetCache', JSON.stringify(boxSetCache));
+            } catch (e) {
+                console.error('Error saving box set cache:', e);
+            }
+        }
+
+        function detectBoxSet(releaseData) {
+            // Check if any format contains "Box Set" or indicates multiple discs
+            const formats = releaseData.formats || [];
+            for (const format of formats) {
+                const name = (format.name || '').toLowerCase();
+                const descriptions = (format.descriptions || []).map(d => d.toLowerCase());
+                const qty = parseInt(format.qty) || 1;
+
+                // Check for "Box Set" in name or descriptions
+                if (name.includes('box set') || descriptions.some(d => d.includes('box set'))) {
+                    return { isBoxSet: true, discCount: qty, reason: 'format-boxset' };
+                }
+
+                // Check for compilation box sets
+                if (descriptions.some(d => d.includes('compilation') || d.includes('anthology'))) {
+                    if (qty > 1) {
+                        return { isBoxSet: true, discCount: qty, reason: 'format-compilation' };
+                    }
+                }
+
+                // Check for multi-disc releases (2+ discs of same format)
+                if (qty >= 2 && (name === 'vinyl' || name === 'lp' || name === 'cd')) {
+                    return { isBoxSet: true, discCount: qty, reason: 'multi-disc' };
+                }
+            }
+
+            // Check tracklist for sub-album headers
+            const tracklist = releaseData.tracklist || [];
+            let headingCount = 0;
+            for (const track of tracklist) {
+                const type = (track.type_ || '').toLowerCase();
+                const position = track.position || '';
+
+                // Count heading-type tracks (disc separators)
+                if (type === 'heading' || type === 'index') {
+                    headingCount++;
+                }
+
+                // Look for disc indicators in position
+                if (/^[A-Z]\d*$/.test(position) || /^\d+-/.test(position)) {
+                    // Multi-disc notation detected
+                }
+            }
+
+            if (headingCount >= 2) {
+                return { isBoxSet: true, discCount: headingCount, reason: 'tracklist-headers' };
+            }
+
+            return { isBoxSet: false, discCount: 1, reason: null };
+        }
+
+        function parseBoxSetTracklist(releaseData) {
+            const tracklist = releaseData.tracklist || [];
+            const subAlbums = [];
+            let currentAlbum = null;
+
+            for (const track of tracklist) {
+                const type = (track.type_ || '').toLowerCase();
+                const title = track.title || '';
+                const position = track.position || '';
+
+                // Check for heading (disc/album separator)
+                if (type === 'heading' || type === 'index') {
+                    // Save previous album if exists
+                    if (currentAlbum && currentAlbum.tracks.length > 0) {
+                        subAlbums.push(currentAlbum);
+                    }
+                    // Start new album
+                    currentAlbum = {
+                        title: title.replace(/^(Disc|CD|LP|Side)\s*\d*:?\s*/i, '').trim() || title,
+                        tracks: [],
+                        discNumber: subAlbums.length + 1
+                    };
+                } else if (type === 'track' || type === '') {
+                    // Regular track
+                    if (!currentAlbum) {
+                        // Create default first album
+                        currentAlbum = {
+                            title: 'Disc 1',
+                            tracks: [],
+                            discNumber: 1
+                        };
+                    }
+                    currentAlbum.tracks.push(title);
+                }
+            }
+
+            // Add last album
+            if (currentAlbum && currentAlbum.tracks.length > 0) {
+                subAlbums.push(currentAlbum);
+            }
+
+            // If we only got one album and the box set was detected by format,
+            // try to split by disc position pattern
+            if (subAlbums.length <= 1) {
+                const byDisc = {};
+                for (const track of tracklist) {
+                    const position = track.position || '';
+                    const title = track.title || '';
+
+                    // Match patterns like "1-1", "A1", "CD1-1", etc.
+                    let discNum = 1;
+                    const discMatch = position.match(/^(?:CD|LP|Disc)?(\d+)[-\.]/i);
+                    if (discMatch) {
+                        discNum = parseInt(discMatch[1]);
+                    } else if (/^[A-D]/.test(position)) {
+                        // Vinyl side notation (A, B, C, D...)
+                        const side = position.charAt(0).toUpperCase();
+                        discNum = Math.ceil((side.charCodeAt(0) - 64) / 2); // A,B = 1, C,D = 2
+                    }
+
+                    if (!byDisc[discNum]) {
+                        byDisc[discNum] = { title: `Disc ${discNum}`, tracks: [], discNumber: discNum };
+                    }
+                    byDisc[discNum].tracks.push(title);
+                }
+
+                const discAlbums = Object.values(byDisc).sort((a, b) => a.discNumber - b.discNumber);
+                if (discAlbums.length > 1) {
+                    return discAlbums;
+                }
+            }
+
+            return subAlbums.length > 0 ? subAlbums : null;
+        }
+
+        // Throttled API request queue
+        async function queueApiRequest(fn) {
+            return new Promise((resolve, reject) => {
+                apiRequestQueue.push({ fn, resolve, reject });
+                processApiQueue();
+            });
+        }
+
+        async function processApiQueue() {
+            if (isProcessingQueue || apiRequestQueue.length === 0) return;
+            isProcessingQueue = true;
+
+            while (apiRequestQueue.length > 0) {
+                const { fn, resolve, reject } = apiRequestQueue.shift();
+                try {
+                    const result = await fn();
+                    resolve(result);
+                } catch (error) {
+                    reject(error);
+                }
+                // Wait 1 second between requests to respect rate limits
+                if (apiRequestQueue.length > 0) {
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+            }
+
+            isProcessingQueue = false;
+        }
+
+        async function searchAlbumCover(artist, albumTitle) {
+            return queueApiRequest(async () => {
+                try {
+                    const query = encodeURIComponent(`${artist} ${albumTitle}`);
+                    const response = await fetch(
+                        `https://api.discogs.com/database/search?q=${query}&type=release&token=${DISCOGS_TOKEN}`,
+                        { headers: { 'User-Agent': 'VinylDisplayApp/1.0' } }
+                    );
+
+                    if (!response.ok) return null;
+
+                    const data = await response.json();
+                    if (data.results && data.results.length > 0) {
+                        // Find best match (prefer exact title match)
+                        const exactMatch = data.results.find(r =>
+                            r.title.toLowerCase().includes(albumTitle.toLowerCase())
+                        );
+                        const result = exactMatch || data.results[0];
+                        return result.cover_image || result.thumb || null;
+                    }
+                    return null;
+                } catch (error) {
+                    console.error('Search error:', error);
+                    return null;
+                }
+            });
+        }
+
+        async function expandBoxSet(record, releaseData) {
+            const detection = detectBoxSet(releaseData);
+            if (!detection.isBoxSet) return null;
+
+            const subAlbums = parseBoxSetTracklist(releaseData);
+            if (!subAlbums || subAlbums.length <= 1) {
+                // Can't parse into multiple albums, return null to keep original
+                return null;
+            }
+
+            const virtualAlbums = [];
+            const boxSetCover = releaseData.imageUrl;
+
+            for (const subAlbum of subAlbums) {
+                // Search for cover art
+                let coverUrl = await searchAlbumCover(record.Artist, subAlbum.title);
+
+                // Fall back to box set cover if search fails
+                if (!coverUrl) {
+                    coverUrl = boxSetCover;
+                }
+
+                virtualAlbums.push({
+                    release_id: `${record.release_id}_disc${subAlbum.discNumber}`,
+                    Artist: record.Artist,
+                    Title: subAlbum.title,
+                    isVirtual: true,
+                    parentReleaseId: record.release_id,
+                    parentTitle: record.Title,
+                    virtualImageUrl: coverUrl,
+                    virtualTracks: subAlbum.tracks,
+                    virtualGenres: releaseData.genres,
+                    virtualStyles: releaseData.styles
+                });
+            }
+
+            return virtualAlbums;
+        }
+
+        async function processBoxSets(collectionData) {
+            if (!settings.expandBoxSets) return collectionData;
+
+            loadBoxSetCache();
+            const expandedCollection = [];
+            const detectedBoxSets = [];
+
+            for (const record of collectionData) {
+                // Check cache first
+                if (boxSetCache[record.release_id]) {
+                    const cached = boxSetCache[record.release_id];
+                    if (cached.expanded && cached.virtualAlbums) {
+                        expandedCollection.push(...cached.virtualAlbums);
+                        detectedBoxSets.push({
+                            record,
+                            virtualAlbums: cached.virtualAlbums,
+                            fromCache: true
+                        });
+                        continue;
+                    } else if (!cached.isBoxSet) {
+                        expandedCollection.push(record);
+                        continue;
+                    }
+                }
+
+                // Fetch release data to check if box set
+                const releaseData = await fetchReleaseData(record.release_id);
+                const detection = detectBoxSet(releaseData);
+
+                if (detection.isBoxSet) {
+                    const virtualAlbums = await expandBoxSet(record, releaseData);
+
+                    if (virtualAlbums && virtualAlbums.length > 1) {
+                        expandedCollection.push(...virtualAlbums);
+                        boxSetCache[record.release_id] = {
+                            isBoxSet: true,
+                            expanded: true,
+                            virtualAlbums,
+                            lastUpdated: Date.now()
+                        };
+                        detectedBoxSets.push({
+                            record,
+                            virtualAlbums,
+                            fromCache: false
+                        });
+                    } else {
+                        // Couldn't expand, keep original
+                        expandedCollection.push(record);
+                        boxSetCache[record.release_id] = {
+                            isBoxSet: true,
+                            expanded: false,
+                            lastUpdated: Date.now()
+                        };
+                    }
+                } else {
+                    expandedCollection.push(record);
+                    boxSetCache[record.release_id] = {
+                        isBoxSet: false,
+                        lastUpdated: Date.now()
+                    };
+                }
+            }
+
+            saveBoxSetCache();
+            // Store detected box sets for manager UI
+            window.detectedBoxSets = detectedBoxSets;
+
+            return expandedCollection;
+        }
+
+        function updateBoxSetManagerUI() {
+            const listEl = document.getElementById('boxSetList');
+            if (!listEl) return;
+
+            const boxSets = window.detectedBoxSets || [];
+
+            if (boxSets.length === 0) {
+                listEl.innerHTML = '<div class="boxset-empty">No box sets detected in your collection.</div>';
+                return;
+            }
+
+            let html = '';
+            for (const bs of boxSets) {
+                const albumCount = bs.virtualAlbums ? bs.virtualAlbums.length : 0;
+                html += `
+                    <div class="boxset-item">
+                        <div class="boxset-item-info">
+                            <div class="boxset-item-title">${escapeHtml(bs.record.Title)}</div>
+                            <div class="boxset-item-artist">${escapeHtml(bs.record.Artist)}</div>
+                            <div class="boxset-item-count">Expanded to ${albumCount} albums</div>
+                        </div>
+                    </div>
+                `;
+            }
+            listEl.innerHTML = html;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         function preloadImage(url) {
@@ -790,7 +1238,7 @@
             const titleText = record.Title;
             const genreText = releaseData.genres.join(', ') || 'Unknown';
             const styleText = releaseData.styles.join(', ') || 'Unknown';
-            const tracks = releaseData.tracklist || [];
+            const tracks = releaseData.tracklistTitles || [];
 
             // Calculate speeds to fit within 10 seconds total
             // Artist: 0-2s, Title: 2-4s, Tracklist: 4s (instant), Genre: 4-6s, Style: 6-8s
@@ -1000,7 +1448,7 @@
 
         async function prepareNextSlide() {
             const record = shuffledData[currentIndex];
-            const releaseData = await fetchReleaseData(record.release_id);
+            const releaseData = await fetchReleaseData(record.release_id, record);
             await preloadImage(releaseData.imageUrl);
             return createSlide(record, releaseData, getNextEffect());
         }
@@ -1055,7 +1503,7 @@
                 console.log(`Loaded ${shuffledData.length} records`);
 
                 const firstRecord = shuffledData[0];
-                const firstReleaseData = await fetchReleaseData(firstRecord.release_id);
+                const firstReleaseData = await fetchReleaseData(firstRecord.release_id, firstRecord);
                 await preloadImage(firstReleaseData.imageUrl);
                 loadingBar.style.width = '100%';
 
@@ -1108,7 +1556,7 @@
             welcomeError.textContent = '';
 
             try {
-                const collectionData = await fetchUserCollection(username);
+                let collectionData = await fetchUserCollection(username);
 
                 if (collectionData.length === 0) {
                     throw new Error('No records found in this collection');
@@ -1117,6 +1565,13 @@
                 // Hide welcome screen, show loading screen
                 welcomeScreen.classList.add('hidden');
                 loading.style.display = 'flex';
+
+                // Process box sets if enabled
+                if (settings.expandBoxSets) {
+                    const loadingText = document.querySelector('.loading-text');
+                    if (loadingText) loadingText.textContent = 'Processing box sets...';
+                    collectionData = await processBoxSets(collectionData);
+                }
 
                 // Start the slideshow
                 await startSlideshow(collectionData);
@@ -1144,7 +1599,8 @@
                 settingShowTitle: 'showTitle',
                 settingShowGenre: 'showGenre',
                 settingShowTracklist: 'showTracklist',
-                settingTransitions: 'enableTransitions'
+                settingTransitions: 'enableTransitions',
+                settingExpandBoxSets: 'expandBoxSets'
             };
 
             for (const [id, key] of Object.entries(toggleMap)) {
@@ -1199,7 +1655,8 @@
                 settingShowTitle: 'showTitle',
                 settingShowGenre: 'showGenre',
                 settingShowTracklist: 'showTracklist',
-                settingTransitions: 'enableTransitions'
+                settingTransitions: 'enableTransitions',
+                settingExpandBoxSets: 'expandBoxSets'
             };
 
             for (const [id, key] of Object.entries(toggleMap)) {
@@ -1228,6 +1685,28 @@
                     saveSettings();
                 });
             });
+
+            // Box Set Manager
+            const boxSetManagerBtn = document.getElementById('boxSetManagerBtn');
+            const boxSetModal = document.getElementById('boxSetModal');
+            const boxSetClose = document.getElementById('boxSetClose');
+
+            if (boxSetManagerBtn && boxSetModal) {
+                boxSetManagerBtn.addEventListener('click', () => {
+                    boxSetModal.classList.add('open');
+                    updateBoxSetManagerUI();
+                });
+
+                boxSetClose.addEventListener('click', () => {
+                    boxSetModal.classList.remove('open');
+                });
+
+                boxSetModal.addEventListener('click', (e) => {
+                    if (e.target === boxSetModal) {
+                        boxSetModal.classList.remove('open');
+                    }
+                });
+            }
         }
 
         function init() {
