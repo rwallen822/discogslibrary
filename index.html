@@ -371,7 +371,6 @@
                     genres: data.genres || [],
                     styles: data.styles || [],
                     tracklist: data.tracklist ? data.tracklist.map(t => t.title || 'Untitled').filter(Boolean) : []
-                    tracklist: data.tracklist ? data.tracklist.map(t => t.title) : []
                 };
                 releaseCache.set(releaseId, releaseData);
                 return releaseData;
