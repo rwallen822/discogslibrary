@@ -401,20 +401,14 @@
 
             do {
                 const response = await fetch(
-                    `https://api.discogs.com/users/${encodeURIComponent(username)}/collection/folders/0/releases?page=${page}&per_page=100`,
-                    {
-                        headers: {
-                            'Authorization': `Discogs token=${DISCOGS_TOKEN}`,
-                            'User-Agent': 'VinylDisplayApp/1.0'
-                        }
-                    }
+                    `https://api.discogs.com/users/${encodeURIComponent(username)}/collection/folders/0/releases?page=${page}&per_page=100&token=${DISCOGS_TOKEN}`
                 );
 
                 if (!response.ok) {
                     if (response.status === 404) {
                         throw new Error('User not found. Check the username.');
                     }
-                    throw new Error('Failed to fetch collection');
+                    throw new Error('Failed to fetch collection. Is the collection public?');
                 }
 
                 const data = await response.json();
