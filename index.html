@@ -1115,9 +1115,9 @@
                         await new Promise(r => setTimeout(r, 1000 * attempt));
                     }
 
+                    // No auth token = per-IP rate limit (25/min) instead of shared token limit
                     const response = await fetchWithTimeout(`https://api.discogs.com/releases/${releaseId}`, {
                         headers: {
-                            'Authorization': `Discogs token=${DISCOGS_TOKEN}`,
                             'User-Agent': 'VinylDisplayApp/1.0'
                         }
                     });
