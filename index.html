@@ -273,6 +273,45 @@
             pointer-events: none; z-index: 5;
             background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.5) 100%);
         }
+
+        /* Welcome Screen */
+        .welcome-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #0a0a0a; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 2000;
+            transition: opacity 0.5s ease-out;
+        }
+        .welcome-screen.hidden { opacity: 0; pointer-events: none; }
+        .welcome-screen h1 {
+            font-family: 'Questrial', sans-serif; font-size: clamp(2rem, 5vw, 4rem);
+            color: #ffffff; margin-bottom: 0.5rem; letter-spacing: 0.1em;
+        }
+        .welcome-screen p {
+            font-family: 'Questrial', sans-serif; font-size: 1.1rem;
+            color: rgba(255,255,255,0.5); margin-bottom: 2rem;
+        }
+        .welcome-screen input {
+            font-family: 'Questrial', sans-serif; font-size: 1.2rem;
+            padding: 1rem 1.5rem; width: 300px; max-width: 80vw;
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 4px; color: #ffffff; text-align: center;
+            outline: none; transition: border-color 0.3s;
+        }
+        .welcome-screen input::placeholder { color: rgba(255,255,255,0.3); }
+        .welcome-screen input:focus { border-color: rgba(255,255,255,0.5); }
+        .welcome-screen button {
+            font-family: 'Questrial', sans-serif; font-size: 1rem;
+            padding: 0.8rem 2rem; margin-top: 1.5rem;
+            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 4px; color: #ffffff; cursor: pointer;
+            transition: background 0.3s, transform 0.2s; letter-spacing: 0.1em;
+        }
+        .welcome-screen button:hover { background: rgba(255,255,255,0.2); transform: scale(1.02); }
+        .welcome-screen button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .welcome-error {
+            color: #ff6b6b; font-size: 0.9rem; margin-top: 1rem;
+            font-family: 'Questrial', sans-serif;
+        }
     </style>
 </head>
 <body>
@@ -307,6 +346,14 @@
         </defs>
     </svg>
 
+    <div class="welcome-screen" id="welcomeScreen">
+        <h1>VINYL DISPLAY</h1>
+        <p>Enter your Discogs username to view your collection</p>
+        <input type="text" id="usernameInput" placeholder="Discogs username" autocomplete="off">
+        <button id="startButton">View Collection</button>
+        <div class="welcome-error" id="welcomeError"></div>
+    </div>
+
     <div class="loading" id="loading">
         <div class="loading-text">Loading your collection...</div>
         <div class="loading-progress"><div class="loading-bar" id="loadingBar"></div></div>
@@ -314,7 +361,6 @@
     <div class="container" id="container"></div>
     <div class="vignette"></div>
 
-    <script src="data.js"></script>
     <script>
         const DISCOGS_TOKEN = 'QdGTPELWMUMKooWoGWwMkSlePUTLbSbGuvkxUWdm';
         const SLIDE_DURATION = 15000;
@@ -346,6 +392,47 @@
                 [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
             }
             return shuffled;
+        }
+
+        async function fetchUserCollection(username) {
+            const allReleases = [];
+            let page = 1;
+            let totalPages = 1;
+
+            do {
+                const response = await fetch(
+                    `https://api.discogs.com/users/${encodeURIComponent(username)}/collection/folders/0/releases?page=${page}&per_page=100`,
+                    {
+                        headers: {
+                            'Authorization': `Discogs token=${DISCOGS_TOKEN}`,
+                            'User-Agent': 'VinylDisplayApp/1.0'
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        throw new Error('User not found. Check the username.');
+                    }
+                    throw new Error('Failed to fetch collection');
+                }
+
+                const data = await response.json();
+                totalPages = data.pagination.pages;
+
+                for (const item of data.releases) {
+                    const info = item.basic_information;
+                    allReleases.push({
+                        release_id: String(info.id),
+                        Artist: info.artists.map(a => a.name).join(', '),
+                        Title: info.title
+                    });
+                }
+
+                page++;
+            } while (page <= totalPages);
+
+            return allReleases;
         }
 
         function getNextEffect() {
@@ -700,7 +787,7 @@
             setTimeout(async () => { nextSlideReady = await prepareNextSlide(); }, 2000);
         }
 
-        async function init() {
+        async function startSlideshow(collectionData) {
             const loadingBar = document.getElementById('loadingBar');
             const loading = document.getElementById('loading');
 
@@ -734,13 +821,78 @@
                     loadingEl.innerHTML = '<div class="loading-text">Error loading collection</div><div id="error-detail" style="color: rgba(255,255,255,0.4); font-size: 0.9rem;"></div>';
                     const errorDetail = document.getElementById('error-detail');
                     if (errorDetail) {
-                        errorDetail.textContent = error.message; // Use textContent to prevent XSS
+                        errorDetail.textContent = error.message;
                     }
                 }
-                document.getElementById('loading').innerHTML = `
-                    <div class="loading-text">Error loading collection</div>
-                    <div style="color: rgba(255,255,255,0.4); font-size: 0.9rem;">${error.message}</div>`;
             }
+        }
+
+        async function handleStart() {
+            const welcomeScreen = document.getElementById('welcomeScreen');
+            const loading = document.getElementById('loading');
+            const usernameInput = document.getElementById('usernameInput');
+            const startButton = document.getElementById('startButton');
+            const welcomeError = document.getElementById('welcomeError');
+
+            const username = usernameInput.value.trim();
+            if (!username) {
+                welcomeError.textContent = 'Please enter a username';
+                return;
+            }
+
+            // Save username for next visit
+            localStorage.setItem('discogsUsername', username);
+
+            // Disable button while loading
+            startButton.disabled = true;
+            startButton.textContent = 'Loading...';
+            welcomeError.textContent = '';
+
+            try {
+                const collectionData = await fetchUserCollection(username);
+
+                if (collectionData.length === 0) {
+                    throw new Error('No records found in this collection');
+                }
+
+                // Hide welcome screen, show loading screen
+                welcomeScreen.classList.add('hidden');
+                loading.style.display = 'flex';
+
+                // Start the slideshow
+                await startSlideshow(collectionData);
+
+            } catch (error) {
+                welcomeError.textContent = error.message;
+                startButton.disabled = false;
+                startButton.textContent = 'View Collection';
+            }
+        }
+
+        function init() {
+            const welcomeScreen = document.getElementById('welcomeScreen');
+            const loading = document.getElementById('loading');
+            const usernameInput = document.getElementById('usernameInput');
+            const startButton = document.getElementById('startButton');
+
+            // Hide loading screen initially
+            loading.style.display = 'none';
+
+            // Load saved username
+            const savedUsername = localStorage.getItem('discogsUsername');
+            if (savedUsername) {
+                usernameInput.value = savedUsername;
+            }
+
+            // Handle start button click
+            startButton.addEventListener('click', handleStart);
+
+            // Handle Enter key in input
+            usernameInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    handleStart();
+                }
+            });
         }
 
         document.addEventListener('DOMContentLoaded', init);
