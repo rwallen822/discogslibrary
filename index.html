@@ -327,50 +327,71 @@
             100% { opacity: 0; }
         }
 
-        /* Channel Switch Glitch - RGB split and jitter */
+        /* Channel Switch Glitch - RGB split and jitter - AMPED UP */
         .channel-glitch.animate {
-            animation: channel-glitch 0.5s steps(10) forwards;
+            animation: channel-glitch 0.6s steps(12) forwards;
         }
         @keyframes channel-glitch {
-            0% { filter: none; transform: translateX(0) scaleY(1); opacity: 0; }
-            10% { filter: drop-shadow(-4px 0 0 rgba(255,0,0,0.8)) drop-shadow(4px 0 0 rgba(0,255,255,0.8));
-                  transform: translateX(-3px) scaleY(1.02); opacity: 0.7; }
-            20% { filter: drop-shadow(3px 0 0 rgba(255,0,0,0.6)) drop-shadow(-3px 0 0 rgba(0,255,255,0.6));
-                  transform: translateX(4px) scaleY(0.98); opacity: 0.8; }
-            30% { filter: drop-shadow(-2px 0 0 rgba(255,0,0,0.9)) drop-shadow(2px 0 0 rgba(0,255,255,0.9));
-                  transform: translateX(-2px) scaleY(1.01); opacity: 0.9; }
-            40% { filter: drop-shadow(2px 0 0 rgba(255,0,0,0.4)) drop-shadow(-2px 0 0 rgba(0,255,255,0.4));
-                  transform: translateX(1px) scaleY(1); opacity: 1; }
-            50% { filter: drop-shadow(-1px 0 0 rgba(255,0,0,0.2)) drop-shadow(1px 0 0 rgba(0,255,255,0.2));
-                  transform: translateX(-1px); opacity: 1; }
-            100% { filter: none; transform: translateX(0) scaleY(1); opacity: 1; }
+            0% { filter: none; transform: translateX(0) scaleY(1) skewX(0deg); opacity: 0; }
+            8% { filter: drop-shadow(-12px 0 0 rgba(255,0,0,1)) drop-shadow(12px 0 0 rgba(0,255,255,1));
+                  transform: translateX(-8px) scaleY(1.05) skewX(-3deg); opacity: 0.6; }
+            16% { filter: drop-shadow(15px 0 0 rgba(255,0,0,1)) drop-shadow(-15px 0 0 rgba(0,255,255,1));
+                  transform: translateX(10px) scaleY(0.95) skewX(4deg); opacity: 0.7; }
+            24% { filter: drop-shadow(-10px 0 0 rgba(255,0,0,1)) drop-shadow(10px 0 0 rgba(0,255,255,1)) brightness(1.3);
+                  transform: translateX(-6px) scaleY(1.03) skewX(-2deg); opacity: 0.85; }
+            32% { filter: drop-shadow(8px 0 0 rgba(255,0,0,0.9)) drop-shadow(-8px 0 0 rgba(0,255,255,0.9));
+                  transform: translateX(5px) scaleY(0.97) skewX(2deg); opacity: 0.9; }
+            48% { filter: drop-shadow(-5px 0 0 rgba(255,0,0,0.7)) drop-shadow(5px 0 0 rgba(0,255,255,0.7));
+                  transform: translateX(-3px) scaleY(1.01) skewX(-1deg); opacity: 0.95; }
+            64% { filter: drop-shadow(3px 0 0 rgba(255,0,0,0.4)) drop-shadow(-3px 0 0 rgba(0,255,255,0.4));
+                  transform: translateX(2px) skewX(0.5deg); opacity: 1; }
+            100% { filter: none; transform: translateX(0) scaleY(1) skewX(0deg); opacity: 1; }
         }
 
-        /* VHS Tracking Roll - horizontal distortion bar moving down */
+        /* VHS Tracking Roll - horizontal distortion bar moving down - AMPED UP */
         .vhs-tracking-container {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             overflow: hidden;
         }
         .vhs-tracking-line {
-            position: absolute; left: 0; width: 100%; height: 30px;
+            position: absolute; left: 0; width: 100%; height: 80px;
             background: linear-gradient(180deg,
                 transparent 0%,
-                rgba(255,255,255,0.1) 20%,
-                rgba(255,255,255,0.3) 50%,
-                rgba(255,255,255,0.1) 80%,
+                rgba(255,255,255,0.15) 10%,
+                rgba(255,255,255,0.4) 30%,
+                rgba(255,255,255,0.8) 48%,
+                rgba(0,0,0,0.3) 52%,
+                rgba(255,255,255,0.4) 70%,
+                rgba(255,255,255,0.15) 90%,
                 transparent 100%);
             transform: translateY(-100%);
-            mix-blend-mode: overlay;
+            mix-blend-mode: hard-light;
+            filter: blur(1px);
+        }
+        .vhs-tracking-container.animate {
+            animation: vhs-container-shake 1.5s ease-out forwards;
         }
         .vhs-tracking-container.animate .vhs-tracking-line {
             animation: vhs-tracking-roll 1.5s ease-out forwards;
         }
         @keyframes vhs-tracking-roll {
-            0% { transform: translateY(-30px); }
-            100% { transform: translateY(calc(100vh + 30px)); }
+            0% { transform: translateY(-80px) scaleY(1); }
+            50% { transform: translateY(50vh) scaleY(1.2); }
+            100% { transform: translateY(calc(100vh + 80px)) scaleY(1); }
+        }
+        @keyframes vhs-container-shake {
+            0%, 100% { transform: translateX(0); }
+            10% { transform: translateX(-3px); }
+            20% { transform: translateX(4px); }
+            30% { transform: translateX(-2px); }
+            40% { transform: translateX(3px); }
+            50% { transform: translateX(-4px); }
+            60% { transform: translateX(2px); }
+            70% { transform: translateX(-3px); }
+            80% { transform: translateX(1px); }
         }
 
-        /* Scanline Intensify - scanlines pulse during transition */
+        /* Scanline Intensify - scanlines pulse during transition - AMPED UP */
         .scanline-intensify {
             position: relative;
         }
@@ -379,85 +400,146 @@
             background: repeating-linear-gradient(
                 0deg,
                 transparent 0px,
-                transparent 2px,
-                rgba(0,0,0,0.3) 2px,
-                rgba(0,0,0,0.3) 4px
+                transparent 3px,
+                rgba(0,0,0,0.7) 3px,
+                rgba(0,0,0,0.7) 6px
             );
             opacity: 0; pointer-events: none; z-index: 10;
         }
+        .scanline-intensify::after {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(180deg,
+                transparent 0%,
+                rgba(255,255,255,0.1) 50%,
+                transparent 100%);
+            background-size: 100% 8px;
+            opacity: 0; pointer-events: none; z-index: 11;
+            animation: none;
+        }
         .scanline-intensify.animate::before {
             animation: scanline-pulse 1.2s ease-out forwards;
+        }
+        .scanline-intensify.animate::after {
+            animation: scanline-flicker 1.2s steps(4) forwards;
         }
         .scanline-intensify.animate {
             animation: scanline-reveal 1.2s ease-out forwards;
         }
         @keyframes scanline-pulse {
             0% { opacity: 0; }
-            20% { opacity: 0.8; }
-            50% { opacity: 0.6; }
+            15% { opacity: 1; }
+            30% { opacity: 0.5; }
+            45% { opacity: 0.9; }
+            60% { opacity: 0.4; }
+            75% { opacity: 0.6; }
+            100% { opacity: 0; }
+        }
+        @keyframes scanline-flicker {
+            0% { opacity: 0; background-position: 0 0; }
+            20% { opacity: 0.4; background-position: 0 2px; }
+            40% { opacity: 0.2; background-position: 0 4px; }
+            60% { opacity: 0.5; background-position: 0 1px; }
+            80% { opacity: 0.1; background-position: 0 3px; }
             100% { opacity: 0; }
         }
         @keyframes scanline-reveal {
-            0% { opacity: 0; }
-            30% { opacity: 1; }
-            100% { opacity: 1; }
+            0% { opacity: 0; filter: brightness(1.3); }
+            20% { opacity: 0.8; filter: brightness(1.2); }
+            40% { opacity: 1; filter: brightness(1); }
+            100% { opacity: 1; filter: brightness(1); }
         }
 
-        /* Chroma Bleed - color separation/smear effect */
+        /* Chroma Bleed - color separation/smear effect - AMPED UP */
         .chroma-bleed.animate {
-            animation: chroma-bleed 0.8s ease-out forwards;
+            animation: chroma-bleed 1s ease-out forwards;
         }
         @keyframes chroma-bleed {
-            0% { filter: none; opacity: 0; transform: translateX(0); }
-            15% { filter: drop-shadow(-6px 0 0 rgba(255,0,0,0.7)) drop-shadow(6px 0 0 rgba(0,200,255,0.7)) blur(2px);
-                  opacity: 0.8; transform: translateX(-2px); }
-            30% { filter: drop-shadow(-4px 0 0 rgba(255,0,0,0.5)) drop-shadow(4px 0 0 rgba(0,200,255,0.5)) blur(1px);
-                  opacity: 0.9; transform: translateX(1px); }
-            50% { filter: drop-shadow(-2px 0 0 rgba(255,0,0,0.3)) drop-shadow(2px 0 0 rgba(0,200,255,0.3));
+            0% { filter: none; opacity: 0; transform: translateX(0) scale(1); }
+            10% { filter: drop-shadow(-20px 0 0 rgba(255,0,0,1)) drop-shadow(20px 0 0 rgba(0,255,255,1))
+                         drop-shadow(-10px 0 0 rgba(255,0,255,0.5)) blur(4px) saturate(1.5);
+                  opacity: 0.6; transform: translateX(-5px) scale(1.02); }
+            25% { filter: drop-shadow(-15px 0 0 rgba(255,0,0,0.9)) drop-shadow(15px 0 0 rgba(0,255,255,0.9))
+                         drop-shadow(8px 0 0 rgba(255,255,0,0.4)) blur(3px) saturate(1.3);
+                  opacity: 0.8; transform: translateX(4px) scale(1.01); }
+            40% { filter: drop-shadow(-10px 0 0 rgba(255,0,0,0.7)) drop-shadow(10px 0 0 rgba(0,255,255,0.7)) blur(2px);
+                  opacity: 0.9; transform: translateX(-2px) scale(1); }
+            60% { filter: drop-shadow(-5px 0 0 rgba(255,0,0,0.4)) drop-shadow(5px 0 0 rgba(0,255,255,0.4)) blur(1px);
+                  opacity: 1; transform: translateX(1px); }
+            80% { filter: drop-shadow(-2px 0 0 rgba(255,0,0,0.2)) drop-shadow(2px 0 0 rgba(0,255,255,0.2));
                   opacity: 1; transform: translateX(0); }
-            100% { filter: none; opacity: 1; transform: translateX(0); }
+            100% { filter: none; opacity: 1; transform: translateX(0) scale(1); }
         }
 
-        /* Posterize Burst - brief posterized color look */
+        /* Posterize Burst - brief posterized color look - AMPED UP */
         .posterize-burst.animate {
-            animation: posterize-burst 0.6s steps(4) forwards;
+            animation: posterize-burst 0.8s steps(6) forwards;
         }
         @keyframes posterize-burst {
-            0% { filter: contrast(100%) saturate(100%); opacity: 0; }
-            20% { filter: contrast(200%) saturate(200%) brightness(1.1); opacity: 0.8; }
-            40% { filter: contrast(300%) saturate(150%) brightness(1.2); opacity: 1; }
-            60% { filter: contrast(200%) saturate(120%); opacity: 1; }
-            80% { filter: contrast(150%) saturate(110%); opacity: 1; }
-            100% { filter: contrast(100%) saturate(100%); opacity: 1; }
+            0% { filter: contrast(100%) saturate(100%) hue-rotate(0deg); opacity: 0; transform: scale(1); }
+            15% { filter: contrast(500%) saturate(400%) brightness(1.4) hue-rotate(20deg);
+                  opacity: 0.7; transform: scale(1.03); }
+            30% { filter: contrast(600%) saturate(300%) brightness(1.3) hue-rotate(-15deg);
+                  opacity: 0.9; transform: scale(1.01); }
+            45% { filter: contrast(400%) saturate(350%) brightness(1.2) hue-rotate(10deg);
+                  opacity: 1; transform: scale(1.02); }
+            60% { filter: contrast(300%) saturate(200%) brightness(1.1) hue-rotate(-5deg);
+                  opacity: 1; transform: scale(1); }
+            80% { filter: contrast(150%) saturate(130%) hue-rotate(0deg);
+                  opacity: 1; }
+            100% { filter: contrast(100%) saturate(100%) hue-rotate(0deg); opacity: 1; transform: scale(1); }
         }
 
-        /* Static Burst - TV noise/static effect */
+        /* Static Burst - TV noise/static effect - AMPED UP */
         .static-burst {
             position: relative;
         }
         .static-burst::before {
+            content: ''; position: absolute; top: -10%; left: -10%; width: 120%; height: 120%;
+            background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+            opacity: 0; mix-blend-mode: screen; pointer-events: none; z-index: 10;
+        }
+        .static-burst::after {
             content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
-            opacity: 0; mix-blend-mode: overlay; pointer-events: none; z-index: 10;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent 0px,
+                transparent 2px,
+                rgba(255,255,255,0.03) 2px,
+                rgba(255,255,255,0.03) 4px
+            );
+            opacity: 0; pointer-events: none; z-index: 11;
         }
         .static-burst.animate {
-            animation: static-reveal 0.5s ease-out forwards;
+            animation: static-reveal 0.6s ease-out forwards;
         }
         .static-burst.animate::before {
-            animation: static-noise 0.5s steps(5) forwards;
+            animation: static-noise 0.6s steps(8) forwards;
+        }
+        .static-burst.animate::after {
+            animation: static-lines 0.6s steps(3) forwards;
         }
         @keyframes static-reveal {
-            0% { opacity: 0; }
-            30% { opacity: 1; }
-            100% { opacity: 1; }
+            0% { opacity: 0; filter: brightness(2) contrast(0.5); }
+            15% { opacity: 0.5; filter: brightness(1.8) contrast(0.7); }
+            30% { opacity: 0.9; filter: brightness(1.3) contrast(0.9); }
+            50% { opacity: 1; filter: brightness(1); }
+            100% { opacity: 1; filter: brightness(1) contrast(1); }
         }
         @keyframes static-noise {
-            0% { opacity: 0.8; transform: scale(1.5); }
-            20% { opacity: 0.9; transform: scale(2) translateX(10%); }
-            40% { opacity: 0.7; transform: scale(1.8) translateX(-5%); }
-            60% { opacity: 0.4; transform: scale(1.2); }
-            80% { opacity: 0.2; transform: scale(1); }
+            0% { opacity: 1; transform: scale(2.5) translateX(5%); }
+            12% { opacity: 1; transform: scale(3) translateX(-8%) translateY(3%); }
+            25% { opacity: 0.9; transform: scale(2.2) translateX(10%) translateY(-5%); }
+            37% { opacity: 0.8; transform: scale(2.8) translateX(-5%) translateY(2%); }
+            50% { opacity: 0.6; transform: scale(1.8) translateX(3%); }
+            62% { opacity: 0.4; transform: scale(1.5) translateX(-3%); }
+            75% { opacity: 0.2; transform: scale(1.2); }
             100% { opacity: 0; transform: scale(1); }
+        }
+        @keyframes static-lines {
+            0% { opacity: 0.8; }
+            33% { opacity: 0.5; }
+            66% { opacity: 0.2; }
+            100% { opacity: 0; }
         }
 
         .loading {
