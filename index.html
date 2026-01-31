@@ -1051,11 +1051,11 @@
             while (unifiedApiQueue.length > 0) {
                 const { fn, resolve, reject } = unifiedApiQueue.shift();
 
-                // Ensure minimum 1 second between requests
+                // Ensure minimum 1.2 seconds between requests (50 req/min, gives headroom under 60/min limit)
                 const now = Date.now();
                 const timeSinceLastCall = now - lastApiCallTime;
-                if (timeSinceLastCall < 1000) {
-                    await new Promise(r => setTimeout(r, 1000 - timeSinceLastCall));
+                if (timeSinceLastCall < 1200) {
+                    await new Promise(r => setTimeout(r, 1200 - timeSinceLastCall));
                 }
 
                 try {
@@ -1111,6 +1111,10 @@
                 }
 
                 page++;
+                // Rate limit between page fetches
+                if (page <= totalPages) {
+                    await new Promise(r => setTimeout(r, 1200));
+                }
             } while (page <= totalPages);
 
             return allReleases;
